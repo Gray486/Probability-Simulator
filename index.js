@@ -8,11 +8,10 @@ if (process.argv.indexOf("port") > -1) {
         port = process.argv[process.argv.indexOf("port") + 1]
 }
 
-const ACCOUNTS_FILE = "/home/gray/sites/Casino-Accounts.json";
-const PUBLIC_KEY = "BFfnB1YSRe73kuMCVXJLJ0uKCtEJNvmhIMxi5YR-VP9stTURSQMxRy3-LA2AkgnFB0Yoq50Qo2-Aj-D_c1K9n2A";
-const PRIVATE_KEY = "NtDYLP6dnYDYNC8fhSyLcD6ipVkU79G_KT4r24z4Byg";
+const ACCOUNTS_FILE = __dirname + "/Casino-Accounts.json";
+const VAPID = fs.readFileSync(__dirname + "/keys.json").toJSON()
 
-webpush.setVapidDetails("mailto:me@grayjn.com", PUBLIC_KEY, PRIVATE_KEY);
+webpush.setVapidDetails(...VAPID);
 
 app.use(express.json())
 app.use(express.text())
@@ -36,6 +35,10 @@ function auth(req, res, next) {
 
 app.get('/', (req, res) => {
         res.sendFile(__dirname + "/home.html")
+})
+
+app.get('/status', (req, res) => {
+        res.send("All systems go!")
 })
 
 app.get('/game', (req, res) => {
