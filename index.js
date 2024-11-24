@@ -8,8 +8,8 @@ if (process.argv.indexOf("port") > -1) {
         port = process.argv[process.argv.indexOf("port") + 1]
 }
 
-const ACCOUNTS_FILE = __dirname + "/Casino-Accounts.json";
-const VAPID = fs.readFileSync(__dirname + "/keys.json").toJSON()
+const ACCOUNTS_FILE = __dirname + "/accounts.json";
+const VAPID = JSON.parse(fs.readFileSync(__dirname + "/keys.json").toString()).VAPID
 
 webpush.setVapidDetails(...VAPID);
 
@@ -27,14 +27,14 @@ function auth(req, res, next) {
         if (!auth || !users[auth[0]] || auth[1] !== users[auth[0]].password) {
                 res.statusCode = 401;
                 res.setHeader('WWW-Authenticate', 'Basic realm="Gray"');
-                res.sendFile(__dirname + "/401.html");
+                res.sendFile(__dirname + "/static/401.html");
         } else {
                 next(users[auth[0]]);
         }
 }
 
 app.get('/', (req, res) => {
-        res.sendFile(__dirname + "/home.html")
+        res.sendFile(__dirname + "/static/home.html")
 })
 
 app.get('/status', (req, res) => {
@@ -43,19 +43,19 @@ app.get('/status', (req, res) => {
 
 app.get('/game', (req, res) => {
         auth(req, res, () => {
-                res.sendFile(__dirname + "/client.html")
+                res.sendFile(__dirname + "/static/client.html")
         })
 })
 
 app.get('/client.js', (req, res) => {
         auth(req, res, () => {
-                res.sendFile(__dirname + "/client.js")
+                res.sendFile(__dirname + "/static/client.js")
         })
 })
 
 app.get('/worker.js', (req, res) => {
         auth(req, res, () => {
-                res.sendFile(__dirname + "/worker.js")
+                res.sendFile(__dirname + "/static/worker.js")
         })
 })
 
@@ -116,7 +116,7 @@ app.get('/get', (req, res) => {
 })
 
 app.get('/audio.m4a', (req, res) => {
-        res.sendFile(__dirname + "/audio.m4a")
+        res.sendFile(__dirname + "/static/audio.m4a")
 })
 
 app.post('/leave', (req, res) => {
