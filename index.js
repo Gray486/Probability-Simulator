@@ -1,36 +1,52 @@
 const express = require('express');
+const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser')
+const jwt = require('jsonwebtoken')
 const app = express();
 const webpush = require('web-push');
 const fs = require('fs');
+const {OAuth2Client} = require('google-auth-library');
+
 let port = 8000;
 
 if (process.argv.indexOf("port") > -1) {
         port = process.argv[process.argv.indexOf("port") + 1]
 }
 
-const ACCOUNTS_FILE = __dirname + "/Casino-Accounts.json";
-const VAPID = fs.readFileSync(__dirname + "/keys.json").toJSON()
+const ACCOUNTS_FILE_PATH = __dirname + "/storage/accounts.json";
+const KEYS_FILE = JSON.parse(fs.readFileSync(__dirname + "/storage/keys.json").toString());
+const { VAPID, G_CLIENT_ID, JWT_SECRET } = KEYS_FILE;
+// Link to keys file: https://docs.google.com/document/d/1cb7GLQKhSMh6cB11qgARVA7eCfubcvpuZVbKT0ABnkw/edit?usp=sharing
 
 webpush.setVapidDetails(...VAPID);
 
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser())
 app.use(express.json())
 app.use(express.text())
 
 function auth(req, res, next) {
-        let users = JSON.parse(fs.readFileSync(ACCOUNTS_FILE).toString());
-        let auth;
-
-        if (req.headers.authorization) {
-                auth = Buffer.from(req.headers.authorization.substring(6), 'base64').toString().split(':');
+        if (!req.cookies.token) {
+                res.status(401).sendFile(__dirname + "/static/401.html")
+                return;
         }
 
-        if (!auth || !users[auth[0]] || auth[1] !== users[auth[0]].password) {
-                res.statusCode = 401;
-                res.setHeader('WWW-Authenticate', 'Basic realm="Gray"');
-                res.sendFile(__dirname + "/static/401.html");
-        } else {
-                next(users[auth[0]]);
+        const id = jwt.verify(req.cookies.token, JWT_SECRET).id
+
+        if (!id) {
+                res.status(401).sendFile(__dirname + "/static/401.html")
+                return;
         }
+
+        const accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE_PATH));
+        const user = accounts.find((value) => value.sub = id)
+
+        if (!user) {
+                res.status(401).sendFile(__dirname + "/static/401.html")
+                return;
+        }
+
+        next(user)
 }
 
 app.get('/', (req, res) => {
@@ -59,8 +75,77 @@ app.get('/worker.js', (req, res) => {
         })
 })
 
+app.post('/', async (req, res) => {
+        if (!req.body.g_csrf_token || !req.cookies.g_csrf_token) {
+                res.status(400).send("Missing CSRF token. <a href='./'>Click here</a> to login again.")
+                return;
+        }
+
+        if (req.body.g_csrf_token != req.cookies.g_csrf_token) {
+                res.status(400).send("Failed to verify double submit cookie. <a href='./'>Click here</a> to login again.")
+                return;
+        }
+
+        const ID_TOKEN = req.body.credential;
+
+        if (!ID_TOKEN) { 
+                res.status(400).send("No Google ID token. <a href='./'>Click here</a> to login again.")
+                return;
+        }
+
+        const client = new OAuth2Client();
+        async function verify() {
+                const ticket = await client.verifyIdToken({
+                        idToken: ID_TOKEN,
+                        audience: G_CLIENT_ID
+                });
+                const payload = ticket.getPayload();
+                return payload;
+        }
+
+        let userData = await verify().catch(console.error);
+
+        res.cookie("token", handleUser(userData), { httpOnly: true })
+        res.redirect("./game")
+})
+
+function handleUser(userData) {
+        let accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE_PATH));
+
+        const userIndex = accounts.findIndex((value) => value.sub == userData.sub);
+
+        if (userIndex == -1) {
+
+                const defaultUsername = userData.given_name + userData.family_name.charAt(0);
+
+                let uniqueUsername = defaultUsername;
+
+                let uniqueUsernameIndex = 1;
+                while (accounts.findIndex((value) => value.username == uniqueUsername) > -1) {
+                        console.log(uniqueUsername)
+                        uniqueUsername = defaultUsername + uniqueUsernameIndex.toString();
+                        uniqueUsernameIndex++
+                }
+
+                const newAccount = {
+                        username: uniqueUsername,
+                        name: userData.name,
+                        sub: userData.sub,
+                        score: 0,
+                        wins: 0
+                }
+
+                // changeAccountData((data) => {
+                //         data.push(newAccount)
+                //         return data;
+                // })
+        }
+
+        return jwt.sign({id: userData.sub}, JWT_SECRET, { expiresIn: "10h" })
+}
+
 async function sendPushNotificaiton(title, body) {
-        let subscribers = JSON.parse(fs.readFileSync(__dirname + "/subscribers.json"))
+        let subscribers = JSON.parse(fs.readFileSync(__dirname + "/storage/subscribers.json"))
         for (let i = 0; i < subscribers.length; i++) {
                 const subscription = subscribers[i];
                 const payload = {
@@ -76,24 +161,25 @@ async function sendPushNotificaiton(title, body) {
 
 }
 
-let allowedData = {};
-let sendData = true;
-let canGo = true;
 let rankings = [];
 
 setRankings()
 function setRankings() {
-        let accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE));
+        let accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE_PATH));
         rankings = [];
-        for (let i = 0; i < Object.keys(accounts).length; i++) {
-                let player = accounts[Object.keys(accounts)[i]]
+        for (let i = 0; i < accounts.length; i++) {
+                let player = accounts[i]
                 rankings.push({
-                        name: player.name,
+                        name: player.username,
                         score: player.score,
                         wins: player.wins
                 })
         }
 }
+
+let allowedData = {};
+let sendData = true;
+let canGo = true;
 
 app.get('/get', (req, res) => {
         auth(req, res, () => {
@@ -120,7 +206,7 @@ app.get('/audio.m4a', (req, res) => {
 })
 
 app.post('/leave', (req, res) => {
-        let data = JSON.parse(req.body)
+        let data = req.body
 
         if (data.name && data.key) {
                 removePlayer(data.name, data.key)
@@ -135,6 +221,8 @@ app.post('/post', (req, res) => {
 
                 let body = req.body;
                 let action = body.action;
+
+                console.log(body)
 
                 if (action == "join" && game.canJoin) {
                         if (body.name && !playerList.includes(body.name) && players.findIndex(a => a.username == user.username) < 0) {
@@ -163,12 +251,18 @@ app.post('/post', (req, res) => {
 
                 if (action == "chat" && !body.name) {
                         sendMsg(body.msg, user.name, user.name)
+                        res.send({ res: "OK" });
+                        return;
                 }
 
-                if (!body.name || playerKeys[body.name] != body.key) { return }
+                if (!body.name || playerKeys[body.name] != body.key) {
+                        res.sendStatus(400)
+                }
 
                 if (action == "chat") {
                         sendMsg(body.msg, body.name, user.name)
+                        res.send({ res: "OK" });
+                        return;
                 }
 
                 if (action == "start") {
@@ -255,12 +349,12 @@ app.post('/post', (req, res) => {
                         return;
                 }
 
-                res.send({ res: "Command not found" })
+                res.status(400).send({ res: "Command not found" })
 
         })
 })
 
-app.post('/subscribe', async (req, res) => {
+app.post('/subscribe', (req, res) => {
         try {
                 let subscribers = JSON.parse(fs.readFileSync(__dirname + "/subscribers.json"));
                 const subscription = req.body;
@@ -273,6 +367,10 @@ app.post('/subscribe', async (req, res) => {
         } catch (error) {
                 console.error(error)
         }
+})
+
+app.get("*", (req, res) => {
+        res.status(404).sendFile(__dirname + "/static/404.html")
 })
 
 app.listen(port, () => {
@@ -396,10 +494,9 @@ function generateNumber() {
 }
 
 function changeAccountData(change) {
-        console.log("DATA HAS BEEN CHANGED")
-        let accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE));
+        let accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE_PATH));
         let updated = change(accounts)
-        fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(updated))
+        fs.writeFileSync(ACCOUNTS_FILE_PATH, JSON.stringify(updated))
 }
 
 function sendMsg(msg, user, realName) {
@@ -413,7 +510,11 @@ function sendMsg(msg, user, realName) {
 
         chat.push(`${user}: ${msg}`)
 
-        fs.appendFileSync(__dirname + "/chatlog.txt", `${realName}: ${msg}\n`)
+        let chatLog = JSON.parse(fs.readFileSync(__dirname + "/storage/chatlog.json"))
+
+        chatLog.push({username: user, realName: realName, message: msg})
+
+        fs.writeFileSync(__dirname + "/storage/chatlog.json", JSON.stringify(chatLog))
 }
 
 function removePlayer(player, key) {
