@@ -9,7 +9,6 @@ let known = {
         alive: false
 };
 let me = {
-        key: 0,
         name: "",
         spectator: false
 };
@@ -228,8 +227,7 @@ $("#join").click(function () {
                         return;
                 }
 
-                if (!isNaN(parseInt(res))) {
-                        me.key = res;
+                if (res == "OK") {
                         me.name = $("#name").val()
                         $("#controls").show()
                         $("#controls button").prop("disabled", true)
@@ -248,7 +246,7 @@ $("#msg").click(function () {
         if (me.spectator) {
                 post({ action: "chat", msg: $("#msgText").val() })
         } else {
-                post({ name: me.name, key: me.key, action: "chat", msg: $("#msgText").val() })
+                post({ name: me.name, action: "chat", msg: $("#msgText").val() })
         }
         $("#msgText").val("")
 })
@@ -263,8 +261,7 @@ $("#name").on("keyup", function (e) {
 $("#start-btn").click(function () {
         post({
                 action: "start",
-                name: me.name,
-                key: me.key
+                name: me.name
         }).then(function (res) {
                 if (res == "OK") {
                         $("#start-btn").prop("disabled", true);
@@ -301,8 +298,7 @@ function play(move) {
         post({
                 action: "play",
                 move: move,
-                name: me.name,
-                key: me.key
+                name: me.name
         }).then(function (res) {
                 if (res !== "OK") {
                         alert(res)
@@ -556,8 +552,7 @@ $("#rankingsDiv").hide()
 $(window).on("unload", function () {
         navigator.sendBeacon("/leave", new Blob([
                 JSON.stringify({
-                        name: me.name,
-                        key: me.key
+                        name: me.name
                 })
         ], { type: 'text/plain; charset=UTF-8' }));
 })
@@ -568,32 +563,37 @@ async function subscribeToPush() {
 
         const workers = await navigator.serviceWorker.getRegistrations()
 
+        let register;
+
         if (workers.length > 0) {
-                console.log("Service worker already registered!")
-                return;
+                console.log("Service worker already registered.")
+                register = workers[0]
+        } else {
+                console.log("Registering service worker...");
+                register = await navigator.serviceWorker.register("/worker.js", {
+                        scope: "/"
+                });
         }
 
-        console.log("Registering service worker...");
-        const register = await navigator.serviceWorker.register("/worker.js", {
-                scope: "/"
-        });
-        console.log("Service Worker Registered...");
+        if (!(await register.pushManager.getSubscription())) {
+                console.log("Registering Push...");
+                const subscription = await register.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+                });
 
-        console.log("Registering Push...");
-        const subscription = await register.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
-        });
-        console.log("Push Registered...");
+                console.log("Subscribing for Push ...");
+                await fetch("/subscribe", {
+                        method: "POST",
+                        body: JSON.stringify(subscription),
+                        headers: {
+                                "Content-Type": "application/json"
+                        }
+                });
+        } else {
+                console.log("Push already registerd.");
+        }
 
-        console.log("Subscribing for Push ...");
-        await fetch("/subscribe", {
-                method: "POST",
-                body: JSON.stringify(subscription),
-                headers: {
-                        "Content-Type": "application/json"
-                }
-        });
 }
 
 function urlBase64ToUint8Array(base64String) {

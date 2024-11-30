@@ -221,7 +221,7 @@ app.post('/leave', (req, res) => {
 
 app.post('/post', (req, res) => {
 
-        auth(req, res, (user) => {
+        auth(req, res, (user, key) => {
 
                 let body = req.body;
                 let action = body.action;
@@ -258,9 +258,12 @@ app.post('/post', (req, res) => {
                                 strikes: 0
                         })
 
-                        let newKey = crypto.randomBytes(32);
+                        let newKey = crypto.randomBytes(32).toString('hex');
 
                         playerKeys[body.name] = newKey;
+
+                        console.log(newKey)
+                        console.log(playerKeys)
 
                         res.cookie("key", newKey, { httpOnly: true })
                         res.send({ res: "OK" })
@@ -273,7 +276,7 @@ app.post('/post', (req, res) => {
                         return;
                 }
 
-                if (!body.name || playerKeys[body.name] != body.key) {
+                if (!body.name || playerKeys[body.name] != key) {
                         res.sendStatus(400)
                         return;
                 }
@@ -542,12 +545,12 @@ function removePlayer(player, key) {
 
         if (playerIndex > -1 && playerKeys[player] == key) {
 
-                if (game.started && false) {
-                        changeAccountData((data) => {
-                                data[players[playerIndex].username].score -= 50;
-                                return data;
-                        })
-                }
+                // if (game.started) {
+                //         changeAccountData((data) => {
+                //                 data[players[playerIndex].username].score -= 50;
+                //                 return data;
+                //         })
+                // }
 
                 players.splice(playerIndex, 1)
                 playerList.splice(playerList.indexOf(player), 1)
