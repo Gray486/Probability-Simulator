@@ -221,10 +221,10 @@ $("#join").click(function () {
         }).then(function (res) {
                 console.log(res)
 
-                if (res == "error") {
+                if (res.status == "error") {
                         $("#joinDiv").show()
                         $("#wheel").hide()
-                        alert("There was an error! Please pick a new name!")
+                        alert("ERROR: " + res.msg)
                         return;
                 }
 

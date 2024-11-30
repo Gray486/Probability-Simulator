@@ -6,6 +6,7 @@ const app = express();
 const webpush = require('web-push');
 const fs = require('fs');
 const {OAuth2Client} = require('google-auth-library');
+const crypto = require('crypto');
 
 let port = 8000;
 
@@ -31,6 +32,8 @@ function auth(req, res, next) {
                 return;
         }
 
+        const key = req.cookies.key || null;
+
         const id = jwt.verify(req.cookies.token, JWT_SECRET).id
 
         if (!id) {
@@ -46,7 +49,7 @@ function auth(req, res, next) {
                 return;
         }
 
-        next(user)
+        next(user, key)
 }
 
 app.get('/', (req, res) => {
@@ -135,10 +138,10 @@ function handleUser(userData) {
                         wins: 0
                 }
 
-                // changeAccountData((data) => {
-                //         data.push(newAccount)
-                //         return data;
-                // })
+                changeAccountData((data) => {
+                        data.push(newAccount)
+                        return data;
+                })
         }
 
         return jwt.sign({id: userData.sub}, JWT_SECRET, { expiresIn: "10h" })
@@ -206,13 +209,14 @@ app.get('/audio.m4a', (req, res) => {
 })
 
 app.post('/leave', (req, res) => {
-        let data = req.body
+        auth(req, res, (user, key) => {
 
-        if (data.name && data.key) {
-                removePlayer(data.name, data.key)
-        }
-
-        res.send("OK")
+                if (req.body.name && key) {
+                        removePlayer(req.body.name, key)
+                }
+        
+                res.send("OK")
+        })
 })
 
 app.post('/post', (req, res) => {
@@ -225,28 +229,42 @@ app.post('/post', (req, res) => {
                 console.log(body)
 
                 if (action == "join" && game.canJoin) {
-                        if (body.name && !playerList.includes(body.name) && players.findIndex(a => a.username == user.username) < 0) {
-                                playerList.push(body.name)
-                                players.push({
-                                        name: body.name,
-                                        realName: user.name,
-                                        username: user.username,
-                                        score: 0,
-                                        ready: false,
-                                        freeSpin: true,
-                                        alive: true,
-                                        move: "none",
-                                        lastMove: "",
-                                        strikes: 0
-                                })
-                                let newKey = Math.round(Math.random() * 100000000000)
-                                playerKeys[body.name] = newKey
-                                res.send({ res: newKey })
-                                return;
-                        } else {
-                                res.send({ res: "error" })
+                        if (players.findIndex(a => a.username == user.username) > 0) {
+                                res.send({ res: {status: "error", msg: "User already in game." }})
                                 return;
                         }
+
+                        if (!body.name) {
+                                res.send({ res: {status: "error", msg: "No username field." }})
+                                return;
+                        }
+                        
+                        if (playerList.includes(body.name)) {
+                                res.send({ res: {status: "error", msg: "Username taken." }})
+                                return;
+                        }
+                        
+                        playerList.push(body.name)
+                        players.push({
+                                name: body.name,
+                                realName: user.name,
+                                username: user.username,
+                                score: 0,
+                                ready: false,
+                                freeSpin: true,
+                                alive: true,
+                                move: "none",
+                                lastMove: "",
+                                strikes: 0
+                        })
+
+                        let newKey = crypto.randomBytes(32);
+
+                        playerKeys[body.name] = newKey;
+
+                        res.cookie("key", newKey, { httpOnly: true })
+                        res.send({ res: "OK" })
+                        return;
                 }
 
                 if (action == "chat" && !body.name) {
@@ -257,6 +275,7 @@ app.post('/post', (req, res) => {
 
                 if (!body.name || playerKeys[body.name] != body.key) {
                         res.sendStatus(400)
+                        return;
                 }
 
                 if (action == "chat") {
@@ -379,7 +398,7 @@ app.listen(port, () => {
 
 let playerList = []
 let players = []
-let playerKeys = []
+let playerKeys = {}
 let chat = []
 let game = {
         numbersLeft: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
