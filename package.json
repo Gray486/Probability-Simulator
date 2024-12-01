@@ -9,11 +9,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.1",
+    "@types/web-push": "^3.6.4",
     "body-parser": "^1.20.3",
     "cookie-parser": "^1.4.7",
     "express": "^4.21.1",
     "google-auth-library": "^9.15.0",
     "jsonwebtoken": "^9.0.2",
+    "ts-node": "^10.9.2",
     "web-push": "^3.6.7"
   }
 }
