@@ -128,7 +128,6 @@ function makeWheel() {
         wheel.itemLabelAlign = 'center';
         wheel.itemLabelRotation = 90;
         wheel.itemLabelBaselineOffset = -0.2;
-
 }
 
 let playTimer = 0;
@@ -164,13 +163,13 @@ function numberChosen(number) {
                 $("#pot").text(data.game.points)
                 wheel.overlayImage = overlays[number]
 
-                if (data.players.find(a => a.name == me.name).alive) {
+                if (data.players.find(a => a.gameName == me.name).alive) {
                         $("#controls button").prop("disabled", false)
                 }
 
                 for (i = 0; i < data.players.length; i++) {
                         if (!data.players[i].alive && data.players[i].lastMove != "bank") {
-                                $(`#player-${data.players[i].name} #play`).html(`<i class="bi bi-x-square-fill" style="color: red;"></i>`)
+                                $(`#player-${data.players[i].gameName} #play`).html(`<i class="bi bi-x-square-fill" style="color: red;"></i>`)
                         }
                 }
 
@@ -220,17 +219,14 @@ $("#join").click(function () {
         }).then(function (res) {
                 console.log(res)
 
-                if (res.status == "error") {
-                        $("#joinDiv").show()
-                        $("#wheel").hide()
-                        alert("ERROR: " + res.msg)
-                        return;
-                }
-
                 if (res == "OK") {
                         me.name = $("#name").val()
                         $("#controls").show()
                         $("#controls button").prop("disabled", true)
+                } else {
+                        $("#joinDiv").show()
+                        $("#wheel").hide()
+                        alert("ERROR: " + res.msg)
                 }
         })
 })
@@ -367,7 +363,7 @@ function reloadData() {
                         playersData.sort((a, b) => b.score - a.score)
 
                         for (i = 0; i < playersData.length; i++) {
-                                let player = playersData[i].name
+                                let player = playersData[i].gameName
                                 let playerData = playersData[i]
                                 $("#players").append(`
                                         <div class="player" id="player-${player}">
@@ -380,7 +376,7 @@ function reloadData() {
                                 `)
                         }
 
-                        let myData = data.players.find((a) => a.name == me.name)
+                        let myData = data.players.find((a) => a.gameName == me.name)
 
                         console.log(myData?.alive)
 
@@ -443,7 +439,7 @@ function reloadData() {
                 }
 
                 if (known.round !== data.game.round) {
-                        if (data?.players?.find(a => a.name == me.name)?.freeSpin) {
+                        if (data?.players?.find(a => a.gameName == me.name)?.freeSpin) {
                                 $("#freeSpin").show()
                         }
 
@@ -550,11 +546,7 @@ $("#spectator").hide()
 $("#rankingsDiv").hide()
 
 $(window).on("unload", function () {
-        navigator.sendBeacon("/leave", new Blob([
-                JSON.stringify({
-                        name: me.name
-                })
-        ], { type: 'text/plain; charset=UTF-8' }));
+        navigator.sendBeacon("/leave");
 })
 
 const publicVapidKey = "BFfnB1YSRe73kuMCVXJLJ0uKCtEJNvmhIMxi5YR-VP9stTURSQMxRy3-LA2AkgnFB0Yoq50Qo2-Aj-D_c1K9n2A";

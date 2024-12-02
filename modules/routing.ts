@@ -1,19 +1,12 @@
-import * as express from "express";
 import * as bodyParser from "body-parser";
-import * as cookieParser from "cookie-parser";
+const cookieParser = require("cookie-parser");
+const express = require("express");
 import { authenticate, handleUser } from "./accounts";
-import { UserLoginRes } from "./types";
-import { chat, game, joinGame, makeMove, playerKeys, playerList, players, sendMessage } from "./game";
+import { GameData, JoinGameRes, SendData, UserLoginRes } from "./types";
+import { chat, game, joinGame, makeMove, playerKeys, playerList, players, rankings, removePlayer, sendData, sendMessage, voteStartGame } from "./game";
+import { addToSubscriberDB } from "./files";
 
 const app = express();
-
-let port: number = 8000;
-
-// You can specify port on project run
-// EX: node index.js port 9999
-if (process.argv.indexOf("port") > -1) {
-    port = parseInt(process.argv[process.argv.indexOf("port") + 1])
-}
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser())
@@ -21,7 +14,7 @@ app.use(express.json())
 app.use(express.text())
 
 // Used for logging in users
-app.post('/', async (req, res) => {
+app.post('/', async (req: any, res: any) => {
     const loginRes: UserLoginRes = await handleUser(req.cookies.g_csrf_token, req.body.g_csrf_token, req.body.credential);
 
     if (loginRes.success) {
@@ -30,16 +23,15 @@ app.post('/', async (req, res) => {
     } else {
         res.status(loginRes.status).send(loginRes.message)
     }
-
 })
 
-let allowedData;
-let sendData: boolean = true;
+/** Data that is allowed to be viewed by clients at this time. */
+let allowedData: SendData;
 
 // Data for client to retrieve about game
-app.get('/get', (req, res) => {
+app.get('/get', (req: any, res: any) => {
     authenticate(req, res, () => {
-        let data = {
+        let data: GameData = {
             playerList: playerList,
             players: players,
             game: game,
@@ -58,21 +50,17 @@ app.get('/get', (req, res) => {
     })
 })
 
-let canGo = true;
-
-app.post('/post', (req, res) => {
-
+app.post('/post', (req: any, res: any) => {
     authenticate(req, res, (user, key) => {
-
         let body = req.body;
         let action = body.action;
 
         // Joining game
         if (action == "join") {
-            const joinGameRes = joinGame(body.name, user, game.canJoin)
+            const joinGameRes: JoinGameRes = joinGame(body.name, user, game.canJoin)
 
             if (joinGameRes.status == "error") {
-                res.send(joinGameRes)
+                res.send({ res: joinGameRes})
             } else {
                 res.cookie("key", joinGameRes.key, { httpOnly: true })
                 res.send({ res: "OK" })
@@ -83,12 +71,12 @@ app.post('/post', (req, res) => {
 
         // Chatting for players not in the game
         if (action == "chat" && !body.name) {
-            sendMessage(body.msg, user.name, user.name)
+            sendMessage(body.msg, user.realName, user.realName)
             res.send({ res: "OK" });
             return;
         }
 
-        // From here on out only players with their correct key can do actions
+        // From here on out only players with their correct game key can do actions
         if (!body.name || playerKeys[body.name] != key) {
             res.sendStatus(400);
             return;
@@ -96,13 +84,14 @@ app.post('/post', (req, res) => {
 
         // Chatting for players in the game
         if (action == "chat") {
-            sendMessage(body.msg, body.name, user.name)
+            sendMessage(body.msg, body.name, user.realName);
             res.send({ res: "OK" });
             return;
         }
 
         // Starting the game
         if (action == "start") {
+            voteStartGame(user.username);
             res.send({ res: "OK" });
             return;
         }
@@ -110,6 +99,8 @@ app.post('/post', (req, res) => {
         // Making a move
         if (action == "play") {
             makeMove(body.move, body.name)
+            res.send({ res: "OK" });
+            return;
         }
 
         res.status(400).send({ res: "Command not found" })
@@ -118,54 +109,63 @@ app.post('/post', (req, res) => {
 })
 
 // Used to leave the game. Browser sends beacon here on page close.
-// TODO: Verify that this works under new key system
-app.post('/leave', (req, res) => {
+app.post('/leave', (req: any, res: any) => {
     authenticate(req, res, (user, key) => {
-        removePlayer(user.username, key)
+        if (key) {
+            removePlayer(user.username, key)
+        }
         res.send("OK")
     })
 })
 
+// Route used to subscribe to push notifications.
+app.post('/subscribe', (req: any, res: any) => {
+    addToSubscriberDB(req.body);
+    res.status(201).send("Subscribed")
+})
+
 // Protected static routes
 
-app.get('/game', (req, res) => {
+app.get('/game', (req: any, res: any) => {
     authenticate(req, res, () => {
-        res.sendFile(__dirname + "/static/client.html")
+        res.sendFile("client.html", {'root': __dirname + "/../static"})
     })
 })
 
-app.get('/client.js', (req, res) => {
+app.get('/client.js', (req: any, res: any) => {
     authenticate(req, res, () => {
-        res.sendFile(__dirname + "/static/client.js")
+        res.sendFile("client.js", {'root': __dirname + "/../static"})
     })
 })
 
-app.get('/worker.js', (req, res) => {
+app.get('/worker.js', (req: any, res: any) => {
     authenticate(req, res, () => {
-        res.sendFile(__dirname + "/static/worker.js")
+        res.sendFile("worker.js", {'root': __dirname + "/../static"})
     })
 })
 
 // Unprotected static routes
 
-app.get('/audio.m4a', (req, res) => {
-    res.sendFile(__dirname + "/static/audio.m4a")
+app.get('/audio.m4a', (req: any, res: any) => {
+    res.sendFile("audio.m4a", {'root': __dirname + "/../static"})
 })
 
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + "/static/home.html")
+app.get('/', (req: any, res: any) => {
+    res.sendFile("home.html", {'root': __dirname + "/../static"})
 })
 
-app.get('/status', (req, res) => {
-    res.send("All systems go!")
+app.get('/status', (req: any, res: any) => {
+    res.send("All systems go!", {'root': __dirname + "/../static"})
 })
 
 // Catch-all 404 page
-app.get("*", (req, res) => {
-    res.status(404).sendFile(__dirname + "/static/404.html")
+app.get("*", (req: any, res: any) => {
+    res.status(404).sendFile("404.html", {'root': __dirname + "/../static"})
 })
 
-// Opens server on port
-app.listen(port, () => {
-    console.log(`Listening on ${port}!`)
-})
+/** Opens server on specified port */
+export function openWebServer(port: number) {
+    app.listen(port, () => {
+        console.log(`Listening on ${port}!`)
+    })
+}

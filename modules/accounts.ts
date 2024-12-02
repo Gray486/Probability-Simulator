@@ -5,11 +5,16 @@ import { addUser, getUserDB, KEYS } from "./files";
 
 const { JWT_SECRET, G_CLIENT_ID } = KEYS;
 
-// Put inside of route to make it protected
+/**
+ * Put inside of route to make it protected.
+ * @param req Express request.
+ * @param res Express responce.
+ * @param next The route to call after authentication.
+ */
 export function authenticate(req: any, res: any, next: (user: User, key?: string) => void): void {
     // Makes sure token cookie exists
     if (!req.cookies.token) {
-        res.status(401).sendFile(__dirname + "/static/401.html")
+        res.status(401).sendFile("401.html", {'root': __dirname + "/../static"})
         return;
     }
 
@@ -22,7 +27,7 @@ export function authenticate(req: any, res: any, next: (user: User, key?: string
 
     // Makes sure payload is an object
     if (typeof payload == "string") {
-        res.status(401).sendFile(__dirname + "/static/401.html")
+        res.status(401).sendFile("401.html", {'root': __dirname + "/../static"})
         return;
     } else {
         id = payload.id;
@@ -30,10 +35,10 @@ export function authenticate(req: any, res: any, next: (user: User, key?: string
 
     // Finds user
     const accounts: User[] = getUserDB();
-    const user: User | undefined = accounts.find((value: User) => value.id = id)
+    const user: User | undefined = accounts.find((value: User) => value.id == id)
 
     if (!user) {
-        res.status(401).sendFile(__dirname + "/static/401.html")
+        res.status(401).sendFile("401.html", {'root': __dirname + "/../static"})
         return;
     }
 
@@ -41,7 +46,10 @@ export function authenticate(req: any, res: any, next: (user: User, key?: string
     next(user, key)
 }
 
-// Finds or create user account and returns sign in token or error
+/** 
+ * Finds or create user account. 
+ * @returns Sign-in token or error message. 
+ */ 
 export async function handleUser(csrfTokenCookie: string | undefined, csrfTokenBody: string | undefined, token: string | undefined): Promise<UserLoginRes> {
     if (!csrfTokenCookie || !csrfTokenBody) {
         return {success: false, status: 400, message: "Missing CSRF token. <a href='./'>Click here</a> to login again."};
@@ -55,6 +63,7 @@ export async function handleUser(csrfTokenCookie: string | undefined, csrfTokenB
         return {success: false, status: 400, message: "No Google ID token. <a href='./'>Click here</a> to login again."};
     }
 
+    // Uses google auth to find google account and get user data
     const client = new googleAuth.OAuth2Client();
     async function verify(): Promise<googleAuth.TokenPayload | undefined> {
         if (typeof token == "string") {
@@ -79,9 +88,9 @@ export async function handleUser(csrfTokenCookie: string | undefined, csrfTokenB
     const userIndex: number = users.findIndex((value: User) => value.id == userData.sub);
 
     if (userIndex == -1) {
-
         let defaultUsername: string;
 
+        // Creates username based on real name, but defaults to "User"
         if (userData.family_name && userData.given_name) {
             defaultUsername = userData.given_name + userData.family_name.charAt(0);
         } else {
@@ -90,16 +99,17 @@ export async function handleUser(csrfTokenCookie: string | undefined, csrfTokenB
 
         let uniqueUsername: string = defaultUsername;
 
+        // Adds 1 to username until it is unique
         let uniqueUsernameIndex: number = 1;
         while (users.findIndex((value: User) => value.username == uniqueUsername) > -1) {
-            console.log(uniqueUsername)
             uniqueUsername = defaultUsername + uniqueUsernameIndex.toString();
             uniqueUsernameIndex++
         }
 
+        // Creates new user account
         const newAccount: User = {
             username: uniqueUsername,
-            name: userData.name || uniqueUsername,
+            realName: userData.name || uniqueUsername,
             id: userData.sub,
             score: 0,
             wins: 0
@@ -108,6 +118,7 @@ export async function handleUser(csrfTokenCookie: string | undefined, csrfTokenB
         addUser(newAccount)
     }
 
+    // Creates new login token
     const jwtToken: string = jwt.sign({id: userData.sub}, JWT_SECRET, { expiresIn: "10h" });
 
     return {success: true, status: 200, token: jwtToken};

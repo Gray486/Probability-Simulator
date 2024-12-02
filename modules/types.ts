@@ -1,8 +1,11 @@
 // Account Types
 
 export type User = {
+    /** Name on google account. */
+    realName: string,
+    /** Username based on name. */
     username: string,
-    name: string,
+    /** "sub" on google account. */
     id: string,
     score: number,
     wins: number
@@ -25,7 +28,7 @@ export type ChatLogFile = {
     realName: string, 
     message: string
 }
-
+ 
 // Routing Types
 
 export type UserLoginRes = {
@@ -40,32 +43,34 @@ export type UserLoginRes = {
 
 // Game Types
 
+/** Player only used for single game. */
 export type Player = {
+    /** Name chosen at game start. */
     gameName: string,
+    /** Name on google account. */
     realName: string,
+    /** Username based on realName. */
     username: string,
     score: number,
     ready: boolean,
     freeSpin: boolean,
     alive: boolean,
     move: Move,
-    lastMove: Move,
+    lastMove: LastMove,
+    /** Number of times a player has not made a move in the given time. */
     strikes: number
 }
 
-const move = ["freeSpin", "higher", "lower", "none", "bank"] as const;
-export type Move = (typeof move)[number];
-
-export function isMove(x: any): x is Move {
-    return move.includes(x);
-}
+export type Move = "freeSpin" | "higher" | "lower" | "none" | "bank";
+type LastMove = Move | "stillOut" | ""
 
 export type PlayerKeys = {
     [key: string]: string
 }
 
-export type Timers = {
-    start: NodeJS.Timeout
+export type GameTimers = {
+    start: NodeJS.Timeout | null,
+    play: NodeJS.Timeout | null
 }
 
 export type Game = {
@@ -74,9 +79,43 @@ export type Game = {
     lastSpin: number,
     started: boolean,
     spinNumber: number,
+    /** Points accumulated this round. */
     points: number,
-    higher: boolean,
+    result: "higher" | "lower" | "none";
     round: number,
+    /** Wether or not players can join the game right now. */
     canJoin: boolean,
+    /** Winner of last game. */
     lastWinner: string
+}
+
+/** Data about the game that is send to clients. */
+export type GameData = {
+    playerList: string[],
+    players: Player[],
+    game: Game,
+    rankings: Ranking[]
+}
+
+/** Data about the game that is send to clients. */
+export type SendData = GameData & {
+    chat: string[],
+    live: boolean
+}
+
+export type Ranking = {
+    name: string,
+    score: number,
+    wins: number
+}
+
+/**
+ * Return value for joinGame function.
+ */
+export type JoinGameRes = {
+    status: "error", 
+    msg: string
+} | {
+    status: "success", 
+    key: string
 }
