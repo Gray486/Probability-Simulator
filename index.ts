@@ -13,6 +13,3 @@ openWebServer(port)
 
 // Set rankings on server startup
 setRankings()
-
-// FIXME: Not auto banking
-// FIXME: Players always dead

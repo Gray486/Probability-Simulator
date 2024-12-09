@@ -1,7 +1,7 @@
 <head>
 	<title>Casino Simulator!</title>
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-</head
+</head>
 
 <html>
 	<audio id="backgroundMusic">
@@ -21,23 +21,37 @@
 				<b><span id="startCount"></span> players have voted to start the match!</b>&nbsp;&nbsp;
 				<button id="start-btn">Start!</button>
 			</div>
-			<div id="chatDiv">
-				<div id="rankingsSwitch">
+			<div id="panel">
+				<div id="rankingsSwitch" class="switch">
 					<i class="bi bi-list-ol"></i>
 				</div>
-				<span id="chatText"></span>
-				<input id="msgText" type="text">
-				<button id="msg">Send</button>
-			</div>
-			<div id="rankingsDiv">
-				<div id="chatSwitch">
+				<div id="chatSwitch" class="switch">
 					<i class="bi bi-chat-left-dots"></i>
 				</div>
-				<div id="byWins">
-					<span class="rankingTitle">Wins</span>
+				<div id="friendsSwitch" class="switch">
+					<i class="bi bi-person-fill"></i>
 				</div>
-				<div id="byScore">
-					<span class="rankingTitle">Score</span>
+				<div id="settingsSwitch" class="switch">
+					<i class="bi bi-gear"></i>
+				</div>
+				<div id="settingsDiv" class="panelDiv">
+
+				</div>
+				<div id="friendsDiv" class="panelDiv">
+
+				</div>
+				<div id="chatDiv" class="panelDiv">
+					<span id="chatText"></span>
+					<input id="msgText" type="text">
+					<button id="msg">Send</button>
+				</div>
+				<div id="rankingsDiv" class="panelDiv">
+					<div id="byWins">
+						<span class="rankingTitle">Wins</span>
+					</div>
+					<div id="byScore">
+						<span class="rankingTitle">Score</span>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -109,19 +123,17 @@
 		font-weight: 600;
 	}
 
-	#byScore {
-		position: absolute;
-		top: 10px;
-		left: 10px;
-		width: calc(100% - 20px);
-		height: calc(50% - 15px);
-		background-color: gray;
+	.ranking {
+		position: relative;
+		margin: 7px;
+		background-color: #0e1131;
+		height: 50px;
+		width: calc(100% - 14px);
 		border-radius: 5px;
-		text-align: center;
-		overflow: scroll;
 	}
 
 	#byWins {
+		overflow: auto;
 		position: absolute;
 		bottom: 10px;
 		right: 10px;
@@ -130,16 +142,18 @@
 		background-color: gray;
 		border-radius: 5px;
 		text-align: center;
-		overflow: scroll;
 	}
 
-	.ranking {
-		position: relative;
-		margin: 7px;
-		background-color: #0e1131;
-		height: 50px;
-		width: calc(100% - 14px);
+	#byScore {
+		overflow: auto;
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		width: calc(100% - 20px);
+		height: calc(50% - 15px);
+		background-color: gray;
 		border-radius: 5px;
+		text-align: center;
 	}
 
 	.ranking #name {
@@ -158,58 +172,79 @@
 		right: 5px;
 	}
 
-	#rankingsSwitch {
-		background-color: gray;
-		width: 50px;
-		height: 50px;
-		position: absolute;
-		top: 0px;
-		left: -50px;
-		border-radius: 5px 0px 0px 5px;
-		font-size: 40px;
-	}
-
-	#rankingsSwitch i {
+	.switch i {
 		position: absolute;
 		left: 5px;
 		top: 5px;
+	}
+
+	.switch {
+		left: -50px;
+		border-radius: 5px 0px 0px 5px;
+		font-size: 40px;
+		width: 50px;
+		height: 50px;
+		position: absolute;
 	}
 
 	#rankingsDiv {
 		position: absolute;
-		right: 0px;
-		height: calc(100% - 30px);
-		width: 20%;
+		width: 100%;
+		height: 100%;
 		background-color: #418cd8;
-		margin: 10px 10px 20px 0px;
-		border-radius: 0px 5px 5px 5px;
 	}
 
-	#chatSwitch {
-		background-color: #418cd8;
-		width: 50px;
-		height: 50px;
-		position: absolute;
-		top: 0px;
-		left: -50px;
-		border-radius: 5px 0px 0px 5px;
-		font-size: 40px;
+	#friendsSwitch {
+		background-color: #5ea666;
+		top: 100px;
 	}
 
-	#chatSwitch i {
+	#friendsDiv {
 		position: absolute;
-		left: 5px;
-		top: 5px;
+		width: 100%;
+		height: 100%;
+		background-color: #5ea666;
+	}
+
+	#settingsSwitch {
+		background-color: #b4af54;
+		top: 150px;
+	}
+
+	#settingsDiv {
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		background-color: #b4af54;
 	}
 
 	#chatDiv {
 		position: absolute;
+		width: 100%;
+		height: 100%;
+		background-color: gray;
+	}
+
+	#panel {
+		position: absolute;
 		right: 0px;
 		height: calc(100% - 30px);
 		width: 20%;
-		background-color: gray;
 		margin: 10px 10px 20px 0px;
+	}
+
+	.panelDiv {
 		border-radius: 0px 5px 5px 5px;
+	}
+
+	#chatSwitch {
+		background-color: gray;
+		top: 0px;
+	}
+
+	#rankingsSwitch {
+		background-color: #418cd8;
+		top: 50px;
 	}
 
 	#chatText {

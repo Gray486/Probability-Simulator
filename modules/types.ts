@@ -7,6 +7,8 @@ export type User = {
     username: string,
     /** "sub" on google account. */
     id: string,
+    /** The ids of friend user accounts. */
+    friends: string[],
     score: number,
     wins: number
 }
@@ -23,7 +25,7 @@ export type KeysFile = {
     JWT_SECRET: string
 }
 
-export type ChatLogFile = {
+export type ChatLog = {
     username: string, 
     realName: string, 
     message: string

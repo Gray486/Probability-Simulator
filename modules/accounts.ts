@@ -1,7 +1,7 @@
 import * as jwt from "jsonwebtoken";
 import * as googleAuth from "google-auth-library";
 import { User, UserLoginRes } from "./types";
-import { addUser, getUserDB, KEYS } from "./files";
+import { addUser, getUserDBSync, KEYS } from "./files";
 
 const { JWT_SECRET, G_CLIENT_ID } = KEYS;
 
@@ -34,7 +34,7 @@ export function authenticate(req: any, res: any, next: (user: User, key?: string
     }
 
     // Finds user
-    const accounts: User[] = getUserDB();
+    const accounts: User[] = getUserDBSync();
     const user: User | undefined = accounts.find((value: User) => value.id == id)
 
     if (!user) {
@@ -83,7 +83,7 @@ export async function handleUser(csrfTokenCookie: string | undefined, csrfTokenB
         return {success: false, status: 500, message: "Could not get google payload. <a href='./'>Click here</a> to login again."}; 
     }
 
-    let users: User[] = getUserDB();
+    let users: User[] = getUserDBSync();
 
     const userIndex: number = users.findIndex((value: User) => value.id == userData.sub);
 
@@ -105,12 +105,13 @@ export async function handleUser(csrfTokenCookie: string | undefined, csrfTokenB
             uniqueUsername = defaultUsername + uniqueUsernameIndex.toString();
             uniqueUsernameIndex++
         }
-
+ 
         // Creates new user account
         const newAccount: User = {
             username: uniqueUsername,
             realName: userData.name || uniqueUsername,
             id: userData.sub,
+            friends: [],
             score: 0,
             wins: 0
         }

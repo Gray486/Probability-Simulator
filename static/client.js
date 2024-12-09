@@ -282,12 +282,30 @@ $("#freeSpin").click(function () {
 })
 
 $("#chatSwitch").click(function () {
-        $("#rankingsDiv").fadeOut(500)
+        openPanel("#chatDiv")
 })
 
 $("#rankingsSwitch").click(function () {
-        $("#rankingsDiv").fadeIn(500)
+        openPanel("#rankingsDiv")
 })
+
+$("#settingsSwitch").click(function () {
+        openPanel("#settingsDiv")
+})
+
+$("#friendsSwitch").click(function () {
+        openPanel("#friendsDiv")
+})
+
+function openPanel(id) {
+        let divs = ["#chatDiv", "#rankingsDiv", "#friendsDiv", "#settingsDiv"]
+
+        for (let i = 0; i < divs.length; i++) {
+                if (divs[i] !== id) $(divs[i]).fadeOut(100)
+        }
+
+        $(id).fadeIn(100)
+}
 
 function play(move) {
         $("#controls button").prop("disabled", true)
