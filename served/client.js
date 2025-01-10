@@ -1,4 +1,6 @@
 let data = {};
+
+/** Information that is currently known about the game. */
 let known = {
         players: [],
         nextSpin: 1,
@@ -8,6 +10,8 @@ let known = {
         winner: "",
         alive: false
 };
+
+/** The name and spectator status of the player. */
 let me = {
         name: "",
         spectator: false
@@ -18,6 +22,8 @@ if (window.location.host == "dev.grayjn.com") {
                 $("#dev").show()
         })
 }
+
+let dmInterval;
 
 function makeUser(name, password, realName) {
         console.log(`"${name}": {"username": "${name}", "password": "${password}", "name": "${realName}", "score": 0, "wins": 0}`)
@@ -213,6 +219,10 @@ $("#join").click(function () {
         $("#joinDiv").hide()
         $("#wheel").show()
 
+        if (!$("#name").val()) {
+                $("#name").val(data.me.name)
+        }
+
         post({
                 action: "join",
                 name: $("#name").val()
@@ -293,12 +303,14 @@ $("#settingsSwitch").click(function () {
         openPanel("#settingsDiv")
 })
 
-$("#friendsSwitch").click(function () {
-        openPanel("#friendsDiv")
+$("#friendsSwitch").click(function () {        
+        openFriendsPanel()
 })
 
 function openPanel(id) {
-        let divs = ["#chatDiv", "#rankingsDiv", "#friendsDiv", "#settingsDiv"]
+        if (dmInterval && id != "#dmDiv") {clearInterval(dmInterval)}
+
+        let divs = ["#chatDiv", "#rankingsDiv", "#friendsDiv", "#settingsDiv", "#requestsDiv", "#dmDiv"]
 
         for (let i = 0; i < divs.length; i++) {
                 if (divs[i] !== id) $(divs[i]).fadeOut(100)
@@ -339,8 +351,8 @@ const moveStyler = {
 let starttime;
 let starttimer;
 
-reloadData()
-function reloadData() {
+reloadData(true)
+function reloadData(firstTime) {
         setTimeout(async function () {
                 let lastData = data
                 data = await get()
@@ -503,6 +515,10 @@ function reloadData() {
                         known.nextSpin++
                 }
 
+                if (firstTime) {
+                        $("#joinDiv #name").attr("placeholder", data.me.username);
+                }
+
                 reloadData()
         }, 250)
 }
@@ -567,7 +583,7 @@ $(window).on("unload", function () {
         navigator.sendBeacon("/leave");
 })
 
-const publicVapidKey = "BFfnB1YSRe73kuMCVXJLJ0uKCtEJNvmhIMxi5YR-VP9stTURSQMxRy3-LA2AkgnFB0Yoq50Qo2-Aj-D_c1K9n2A";
+const publicVapidKey = "BEORef-fuEOyljiEmeRuLSf17uqmGGKNN0Y4kNF3XbGYr6KfukGSbCj5AkSGsBpT8vUB6GV0cLoZsv9g3MG_XSg";
 
 async function subscribeToPush() {
 
@@ -584,7 +600,7 @@ async function subscribeToPush() {
                         scope: "/"
                 });
         }
-
+        
         if (!(await register.pushManager.getSubscription())) {
                 console.log("Registering Push...");
                 const subscription = await register.pushManager.subscribe({
@@ -623,4 +639,133 @@ function urlBase64ToUint8Array(base64String) {
 
 if ('serviceWorker' in navigator) {
         subscribeToPush();
+}
+
+// Friend menu buttons
+
+function createEventsFriendMenuButtons() {
+        $("#friendsDiv").removeAttr("inert")
+        
+        $("#addFriend").off('click');
+        $("#addFriend").click(function () {
+                const friendName = prompt("Please enter the username of the user you would like to friend.")
+                post({action: "addFriend", username: friendName}).then((res) => {
+                        if (res !== "OK") {
+                                alert(`ERROR: ${res}`)
+                        } else {
+                                alert("Friend request sent!")
+                        }
+                })
+        })
+
+        $(".dm-friend").off('click');
+        $(".dm-friend").click(function () {
+                const friend = $(this).parent().parent().data("username")
+
+                openDmFriendPanel(friend)
+
+                dmInterval = setInterval(() => {
+                        openDmFriendPanel($(this).parent().parent().data("username"))
+                }, 300)
+        })
+
+        $(".remove-friend").off('click');
+        $(".remove-friend").click(function () {
+                const friend = $(this).parent().parent().data("username")
+                $("#friendsDiv").attr("inert", "")
+                post({action: "handleFriend", username: friend, accept: false}).then((res) => {openFriendsPanel()})
+        })
+
+        $(".invite-friend").off('click');
+        $(".invite-friend").click(function () {
+                const friend = $(this).parent().parent().data("username")
+                $("#friendsDiv").attr("inert", "")
+                post({action: "inviteFriend", username: friend}).then((res) => {openFriendsPanel()})
+        })
+
+        $("#viewRequests").off('click');
+        $("#viewRequests").click(function () {
+                $("#requestsDiv").html(`					
+                        <h1>Friend Requests</h1>
+                        <h3>Dening requests will <span class="underline">reversibly</span> block users.</h3>
+                `)
+
+                for (let i = 0; i < data.me.friendRequests.length; i++) {
+                        $("#requestsDiv").append(`
+                                <div class="friend-request" data-username="${data.me.friendRequests[i]}">
+                                        <span class="name">${data.me.friendRequests[i]}</span>
+                                        <div class="options">
+                                                <i class="bi bi-x-lg deny-friend-request" title="Accept"></i>
+                                                <i class="bi bi-check-lg accept-friend-request" title="Deny"></i>
+                                        </div>
+                                </div>
+                        `)
+                }
+                
+                openPanel("#requestsDiv")
+
+                $(".deny-friend-request").off('click');
+                $(".deny-friend-request").click(function () {
+                        const friend = $(this).parent().parent().data("username")
+                        post({action: "handleFriend", username: friend, accept: false}).then((res) => {openFriendsPanel()})                      
+                })
+        
+                $(".accept-friend-request").off('click');
+                $(".accept-friend-request").click(function () {
+                        const friend = $(this).parent().parent().data("username")
+                        console.log(friend)
+                        post({action: "handleFriend", username: friend, accept: true}).then((res) => {openFriendsPanel()})
+                })
+        })
+
+}
+
+function openFriendsPanel() {
+        $("#friendsDiv").html(`					
+                <button class="friendButton" id="addFriend">Add friend</button>
+                <button class="friendButton" id="viewRequests">View requests</button>
+        `)
+
+        for (let i = 0; i < data.me.friends.length; i++) {
+                $("#friendsDiv").append(`
+                        <div class="friend" data-username="${data.me.friends[i]}">
+                                <span class="name">${data.me.friends[i]}</span>
+                                <div class="options">
+                                        <i class="bi bi-chat-left-dots-fill dm-friend" title="Open DM"></i>
+                                        <i class="bi bi-trash-fill remove-friend" title="Remove"></i>
+                                        <i class="bi bi-send-plus-fill invite-friend" title="Invite to play"></i>
+                                </div>
+                        </div>
+                `)
+        }
+
+        openPanel("#friendsDiv")
+
+        createEventsFriendMenuButtons()
+}
+
+$("#dmMsg").click(function () {
+        post({action: "messageFriend", username: $(this).data("username"), message: $("#dmMsgText").val()})
+        $("#dmMsgText").val("")
+})
+
+$("#dmMsgText").on("keyup", function (e) {
+        e.preventDefault()
+        if (e.which == 13) {
+                $("#dmMsg").click()
+        }
+})
+
+function openDmFriendPanel(friend) {
+        const messagesIndex = data.me.directMessageChannels.findIndex((a) => a.receiver == friend || a.initiatedBy == friend);
+        let messages = []
+        if (messagesIndex != -1) {
+                messages = data.me.directMessageChannels[messagesIndex].messages;
+                console.log("found msgs")
+        }
+
+        $("#dmMsg").data("username", friend)
+        $("#dmText").html(messages.join("\n"))
+        
+        openPanel("#dmDiv")
 }

@@ -3,14 +3,30 @@
 export type User = {
     /** Name on google account. */
     realName: string,
-    /** Username based on name. */
+    /** Unique username based on realName. */
     username: string,
     /** "sub" on google account. */
     id: string,
-    /** The ids of friend user accounts. */
     friends: string[],
+    /** The usernames of users that have requested to friend this user. */
+    friendRequests: string[],
+    /** The list of users that have been blocked. */
+    blockedUsers: string[],
     score: number,
-    wins: number
+    wins: number,
+    /** Whether user is in silent mode. */
+    silent: boolean,
+    lastInvite: number | null,
+    acceptingFriendRequests: boolean
+}
+
+export type DirectMessageChannel = {
+    /** The username of the person that initiated the DM channel. */
+    initiatedBy: string,
+    /** The username of the user the DM channel is with. */
+    receiver: string,
+    /** The list of messages in the DM channel. */
+    messages: string[],
 }
 
 // File Types
@@ -29,6 +45,16 @@ export type ChatLog = {
     username: string, 
     realName: string, 
     message: string
+}
+
+export type SubscriptionInformation = {
+    endpoint: string,
+    expirationTime?: null | number,
+    keys: {
+        p256dh: string,
+        auth: string
+    }
+    username: string
 }
  
 // Routing Types
@@ -91,7 +117,7 @@ export type Game = {
     lastWinner: string
 }
 
-/** Data about the game that is send to clients. */
+/** Data about the game. */
 export type GameData = {
     playerList: string[],
     players: Player[],
@@ -99,10 +125,21 @@ export type GameData = {
     rankings: Ranking[]
 }
 
-/** Data about the game that is send to clients. */
+/** Data that is sent to clients about the game plus extra information. */
 export type SendData = GameData & {
+    /** In game chat */
     chat: string[],
-    live: boolean
+    /** Whether game specific data is being live updated. (false when guessing is occuring) */
+    live: boolean,
+    /** Information about the user. */
+    me: {
+        name: string,
+        username: string
+        friendRequests: string[],
+        friends: string[],
+        blockedUsers: string[],
+        directMessageChannels: DirectMessageChannel[]
+    }
 }
 
 export type Ranking = {

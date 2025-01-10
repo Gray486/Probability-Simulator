@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { ChatLog, KeysFile, User } from "./types";
+import { ChatLog, KeysFile, SubscriptionInformation, User, DirectMessageChannel } from "./types";
 
 const USER_DB_FILE_PATH: string = __dirname + "/../storage/accounts.json";
 const KEYS_FILE_PATH: string = __dirname + "/../storage/keys.json"
@@ -11,7 +11,7 @@ const SUBSCRIBERS_PATH: string = __dirname + "/../storage/subscribers.json"
 export const KEYS: KeysFile = JSON.parse(fs.readFileSync(KEYS_FILE_PATH).toString());
 
 export function getUserDBAsync(next: (userDB: User[]) => void) {
-    return fs.readFile(USER_DB_FILE_PATH, (err, data) => {
+    fs.readFile(USER_DB_FILE_PATH, (err, data) => {
         if (err) {
             console.log(err)
             return;
@@ -19,10 +19,6 @@ export function getUserDBAsync(next: (userDB: User[]) => void) {
         let userDB: User[] = JSON.parse(data.toString());
         next(userDB)
     });
-}
-
-export function getUserDBSync(): User[] {
-    return JSON.parse(fs.readFileSync(USER_DB_FILE_PATH).toString())
 }
 
 export function setUserDB(userDB: User[]): void {
@@ -60,18 +56,41 @@ export function logChatMessage(username: string, realName: string, message: stri
     })
 }
 
-// TODO: Replace "any" with subscriber type
-
-export function getSubscriberDB(): any {
-    return JSON.parse(fs.readFileSync(SUBSCRIBERS_PATH).toString());
+export function getSubscriberDBAsync(next: (database: SubscriptionInformation[]) => void) {
+    fs.readFile(SUBSCRIBERS_PATH, (err, data) => {
+        if (err) {
+            console.log(err)
+            return;
+        }
+        let database: SubscriptionInformation[] = JSON.parse(data.toString());
+        next(database)
+    })
 }
 
-function setSubscriberDB(subscribers: any) {
-    fs.writeFileSync(CHAT_LOG_PATH, JSON.stringify(SUBSCRIBERS_PATH));
+function setSubscriberDB(subscribers: SubscriptionInformation[]) {
+    fs.writeFile(SUBSCRIBERS_PATH, JSON.stringify(subscribers), () => {});
 }
 
-export function addToSubscriberDB(subscriber: any) {
-    let currentSubscriberDB: any = getSubscriberDB();
-    currentSubscriberDB.push(subscriber);
-    setSubscriberDB(currentSubscriberDB);
+/**
+ * Adds a subscriber to the subscriber database.
+ * @param subscriber The subscriber to add to the database.
+ * @returns The subscriber ID
+ */
+export function addToSubscriberDB(subscriber: SubscriptionInformation) {
+    getSubscriberDBAsync((currentSubscriberDB) => {
+        currentSubscriberDB.push(subscriber);
+        setSubscriberDB(currentSubscriberDB);
+    })
+}
+
+// FIXME: Maybe temparary, need to decide if I want to make this save in a file.
+
+let directMessageChannels: DirectMessageChannel[] = [];
+
+export function getDirectMessageChannels(next: (directMessageChannels: DirectMessageChannel[]) => void) {
+    next(directMessageChannels)
+}
+
+export function setDirectMessageChannels(newDirectMessageChannels: DirectMessageChannel[]) {
+    directMessageChannels = newDirectMessageChannels;
 }

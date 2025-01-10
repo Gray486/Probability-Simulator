@@ -1,5 +1,4 @@
 import { getUserDBAsync, logChatMessage, setUserDB } from "./files";
-import { sendPushNotificaiton } from "./push";
 import { Player, User, PlayerKeys, Game, Move, Ranking, GameTimers, JoinGameRes } from "./types";
 import * as crypto from "node:crypto";
 
@@ -314,6 +313,10 @@ export function sendMessage(message: string, username: string | undefined, realN
     // Removes 50th chat message to make some space
     if (chat.length > 50) {
         chat.splice(0, 1)
+    }
+
+    if (message.length > 50) {
+        message = message.slice(0, 50);
     }
 
     if (!username) {

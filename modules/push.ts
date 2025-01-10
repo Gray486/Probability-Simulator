@@ -1,5 +1,6 @@
 import * as webpush from "web-push";
-import { getSubscriberDB, KEYS } from "./files";
+import { getSubscriberDBAsync, KEYS } from "./files";
+import { SubscriptionInformation } from "./types";
 
 const { VAPID } = KEYS;
 
@@ -10,16 +11,44 @@ webpush.setVapidDetails(VAPID.SUBJECT, VAPID.PUBLIC_KEY, VAPID.PRIVATE_KEY);
  * @param title Title of push notification.
  * @param body Body of push notification.
  */
-export async function sendPushNotificaiton(title: string, body: string): Promise<void> {
-    let subscribers: any = getSubscriberDB();
-    for (let i = 0; i < subscribers.length; i++) {
-        const subscription = subscribers[i];
-        const payload = {
-            title: title,
-            body: body,
-            icon: "",
-        };
+export function blastPushNotifications(title: string, body: string): void {
+    getSubscriberDBAsync((subscribers: SubscriptionInformation[]) => {
+        for (let i = 0; i < subscribers.length; i++) {
+            const subscription: SubscriptionInformation = subscribers[i];
+            const payload = {
+                title: title,
+                body: body,
+                icon: "",
+            };
 
-        await webpush.sendNotification(subscription, JSON.stringify(payload));       
-    }
+            const { username, ...webPushSubscription } = subscription;
+
+            webpush.sendNotification(webPushSubscription, JSON.stringify(payload));       
+        }
+    })
+
+}
+
+/**
+ * Send a push notification to specified user.
+ * @param title Title of push notification.
+ * @param body Body of push notification.
+ */
+export function sendPushNotification(username: string, title: string, body: string): void {
+    getSubscriberDBAsync((subscribers: SubscriptionInformation[]) => {
+        subscribers.filter((a) => a.username == username)
+
+        for (let i = 0; i < subscribers.length; i++) {
+            const subscription = subscribers[i];
+            const payload = {
+                title: title,
+                body: body,
+                icon: "",
+            };
+
+            const { username, ...webPushSubscription } = subscription;
+
+            webpush.sendNotification(webPushSubscription, JSON.stringify(payload));       
+        }
+    })
 }
