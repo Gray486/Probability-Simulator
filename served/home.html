@@ -1,0 +1,98 @@
+<head>
+	<title>Casino Simulator!</title>
+	<link rel="icon" type="image/png" href="/logo.png" />
+</head>
+<html>
+	<div id="g_id_onload"
+		data-client_id="703539510600-sfvv52k9hh8941gg45bgcnftureuk4sl.apps.googleusercontent.com"
+		data-context="signin"
+		data-ux_mode="popup"
+		data-login_uri="https://dev.grayjn.com/"
+		data-auto_select="true"
+		data-cancel_on_tap_outside="true"
+		data-itp_support="true">
+	</div>
+
+	<h1>Welcome to Casino Simulator!</h1>
+	<h3>
+		Please click the 
+		<blue>G</blue><red>o</red><yellow>o</yellow><blue>g</blue><green>l</green><red>e</red>
+		sign in button to continue to the game!
+	</h3>
+	<p>NOTE: Game data will be saved to your google account.</p>
+
+	<div id="google_signin">
+		<div class="g_id_signin"
+			data-type="standard"
+			data-shape="rectangular"
+			data-theme="outline"
+			data-text="signin_with"
+			data-size="large"
+			data-logo_alignment="left">
+		</div>
+	</div>
+
+	<h1 id="doc-h">&nbsp;</h1>
+
+	<iframe id="doc" src="https://docs.google.com/document/d/e/2PACX-1vQaBKWtb156-gm2ZUL7fL27RbdQgUf2_E9ZeR74V4rHsRJSktgBSd1VlFxJtY8jNSQqgONXVnpiRJnT/pub?embedded=true"></iframe>
+
+	<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+</html>
+
+<style>
+	html {
+		width: 100%;
+		height: 100%;
+		text-align: center;
+		background-color: #0e1131;
+		color: white;
+		font-family: Arial;
+	}
+
+	#doc-h {
+		top: 120px;
+		position: relative;
+	}
+
+	#doc {
+		z-index: -1;
+		position: relative;
+		top: 0px;
+		border: none;
+		width: 90%;
+		max-width: 850px;
+		height: 1500px;
+	}
+
+	#google_signin {
+		width: fit-content;
+		position: absolute;
+		left: 50%;
+		transform: translateX(-50%);
+	}
+
+	h1 {
+		font-size: 40px;
+	}
+
+	p {
+		font-size: 20px;
+	}
+
+	blue {
+		color: #4285F4;
+	}
+
+	red {
+		color: #e34133;
+	}
+
+	yellow {
+		color: #e9af00;
+	}
+
+	green {
+		color: #2b9d4a;
+	}
+</style>
