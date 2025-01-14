@@ -12,20 +12,24 @@ webpush.setVapidDetails(VAPID.SUBJECT, VAPID.PUBLIC_KEY, VAPID.PRIVATE_KEY);
  * @param body Body of push notification.
  */
 export function blastPushNotifications(title: string, body: string): void {
-    getSubscriberDBAsync((subscribers: SubscriptionInformation[]) => {
-        for (let i = 0; i < subscribers.length; i++) {
-            const subscription: SubscriptionInformation = subscribers[i];
-            const payload = {
-                title: title,
-                body: body,
-                icon: "",
-            };
+        getSubscriberDBAsync(async (subscribers: SubscriptionInformation[]) => {
+                for (let i = 0; i < subscribers.length; i++) {
+                        const subscription: SubscriptionInformation = subscribers[i];
+                        const payload = {
+                                title: title,
+                                body: body,
+                                icon: "",
+                        };
 
-            const { username, ...webPushSubscription } = subscription;
+                        const { username, ...webPushSubscription } = subscription;
 
-            webpush.sendNotification(webPushSubscription, JSON.stringify(payload));       
-        }
-    })
+                        try {
+                                await webpush.sendNotification(webPushSubscription, JSON.stringify(payload));
+                        } catch (err) {
+                                console.log("Error sending push.")
+                        }
+                }
+        })
 
 }
 
@@ -35,20 +39,25 @@ export function blastPushNotifications(title: string, body: string): void {
  * @param body Body of push notification.
  */
 export function sendPushNotification(username: string, title: string, body: string): void {
-    getSubscriberDBAsync((subscribers: SubscriptionInformation[]) => {
-        subscribers.filter((a) => a.username == username)
+        getSubscriberDBAsync(async (subscribers: SubscriptionInformation[]) => {
+                subscribers.filter((a) => a.username == username)
 
-        for (let i = 0; i < subscribers.length; i++) {
-            const subscription = subscribers[i];
-            const payload = {
-                title: title,
-                body: body,
-                icon: "",
-            };
+                for (let i = 0; i < subscribers.length; i++) {
+                        const subscription = subscribers[i];
+                        const payload = {
+                                title: title,
+                                body: body,
+                                icon: "",
+                        };
 
-            const { username, ...webPushSubscription } = subscription;
+                        const { username, ...webPushSubscription } = subscription;
 
-            webpush.sendNotification(webPushSubscription, JSON.stringify(payload));       
-        }
-    })
+                        try {
+                                await webpush.sendNotification(webPushSubscription, JSON.stringify(payload));
+                                console.log("Sent push to " + username)
+                        } catch (err) {
+                                console.log("Error sending push to " + username)
+                        }
+                }
+        })
 }
