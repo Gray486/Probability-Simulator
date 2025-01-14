@@ -310,6 +310,7 @@ function newRound(): void {
  * @param realName The name that will appear in the chatlog.
  */
 export function sendMessage(message: string, username: string | undefined, realName: string): void {
+
     // Removes 50th chat message to make some space
     if (chat.length > 50) {
         chat.splice(0, 1)
@@ -350,8 +351,8 @@ export function removePlayer(username: string, key: string) {
         // Removes 50 points if user leaves mid-game
         if (game.started) {
             getUserDBAsync((userDB) => {
-                const userIndex: number = userDB.findIndex((a: User) => a.username == players[playerIndex].username)
-                if (userIndex > -1) {
+                const userIndex = userDB.findIndex((user) => user.username == username);
+                if (userIndex != -1) {
                     userDB[userIndex].score -= 50;
                     setUserDB(userDB)
                 }

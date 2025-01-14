@@ -1,7 +1,7 @@
 import * as bodyParser from "body-parser";
 const cookieParser = require("cookie-parser");
-const express = require("express");
-import { addFriend, authenticate, handleFriend, handleUser, inviteFriend, messageFriend } from "./accounts";
+import express, { Request, Response } from 'express';
+import { addFriend, authenticate, handleFriend, handleUser, inviteFriend, messageFriend, setFriendRequestMode, setSilentMode, unblockUser } from "./accounts";
 import { DirectMessageChannel, GameData, JoinGameRes, SendData, SubscriptionInformation, UserLoginRes } from "./types";
 import { chat, game, joinGame, makeMove, playerKeys, playerList, players, rankings, removePlayer, sendData, sendMessage, voteStartGame } from "./game";
 import { addToSubscriberDB, getDirectMessageChannels } from "./files";
@@ -14,7 +14,7 @@ app.use(express.json())
 app.use(express.text())
 
 // Used for logging in users
-app.post('/', async (req: any, res: any) => {
+app.post('/', async (req: Request, res: Response) => {
         const loginRes: UserLoginRes = await handleUser(req.cookies.g_csrf_token, req.body.g_csrf_token, req.body.credential);
 
         if (loginRes.success) {
@@ -29,7 +29,7 @@ app.post('/', async (req: any, res: any) => {
 let allowedData: SendData;
 
 // Data for client to retrieve about game
-app.get('/get', (req: any, res: any) => {
+app.get('/get', (req: Request, res: Response) => {
         authenticate(req, res, async (user) => {
                 let data: GameData = {
                         playerList: playerList,
@@ -67,8 +67,8 @@ app.get('/get', (req: any, res: any) => {
         })
 })
 
-app.post('/post', (req: any, res: any) => {
-        authenticate(req, res, (user, key) => {
+app.post('/post', (req: Request, res: Response) => {
+        authenticate(req, res, (user, userIndex, key) => {
                 let body = req.body;
                 let action = body.action;
 
@@ -93,18 +93,30 @@ app.post('/post', (req: any, res: any) => {
                         return;
                 }
 
-                if (action == "handleFriend" && body.username && (body.accept == false || body.accept == true)) {
+                if (action == "handleFriend" && body.username && (body.accept == false || body.accept == true) && userIndex) {
                         console.log(body.username, body.accept)
 
-                        handleFriend(user.username, body.username, body.accept).then((response) => {
+                        handleFriend(userIndex, body.username, body.accept).then((response) => {
                                 console.log(response)
                                 res.send({ res: response })
                         })
                         return;
                 }
 
-                if (action == "addFriend" && body.username) {
-                        addFriend(user.username, body.username).then((response) => {
+                if (action == "silentToggle" && userIndex && (body.mode == false || body.mode == true)) {
+                        setSilentMode(userIndex, body.silent)
+                }
+
+                if (action == "acceptRequestToggle" && userIndex && (body.mode == false || body.mode == true)) {
+                        setFriendRequestMode(userIndex, body.mode)
+                }
+
+                if (action == "unblock" && userIndex && body.user) {
+                        unblockUser(userIndex, body.user)
+                }
+
+                if (action == "addFriend" && body.username && userIndex) {
+                        addFriend(userIndex, body.username).then((response) => {
                                 res.send({ res: response })
                         })
                         return;
@@ -130,7 +142,7 @@ app.post('/post', (req: any, res: any) => {
                 }
 
                 // Chatting for players in the game
-                if (action == "chat" && body.name) {
+                if (action == "chat" && body.name && key) {
                         sendMessage(body.msg, body.name, user.realName);
                         res.send({ res: "OK" });
                         return;
@@ -156,8 +168,8 @@ app.post('/post', (req: any, res: any) => {
 })
 
 // Used to leave the game. Browser sends beacon here on page close.
-app.post('/leave', (req: any, res: any) => {
-        authenticate(req, res, (user, key) => {
+app.post('/leave', (req: Request, res: Response) => {
+        authenticate(req, res, (user, userIndex, key) => {
                 if (key) {
                         removePlayer(user.username, key)
                 }
@@ -166,7 +178,7 @@ app.post('/leave', (req: any, res: any) => {
 })
 
 // Route used to subscribe to push notifications.
-app.post('/subscribe', (req: any, res: any) => {
+app.post('/subscribe', (req: Request, res: Response) => {
         authenticate(req, res, (user) => {
                 let subscription: SubscriptionInformation = req.body;
                 subscription.username = user.username;
@@ -188,12 +200,12 @@ openStaticRoute("logo.png", false)
 openStaticRoute("client.css", false)
 openStaticRoute("", false, "home.html")
 
-app.get('/status', (req: any, res: any) => {
-        res.send("All systems go!", { 'root': __dirname + "/../served" })
+app.get('/status', (req: Request, res: Response) => {
+        res.send("All systems go!")
 })
 
 // Catch-all 404 page
-app.get("*", (req: any, res: any) => {
+app.get("*", (req: Request, res: Response) => {
         res.status(404).sendFile("404.html", { 'root': __dirname + "/../served" })
 })
 
@@ -205,13 +217,13 @@ app.get("*", (req: any, res: any) => {
  */
 function openStaticRoute(route: string, protectedRoute: boolean = true, file?: string) {
         if (protectedRoute) {
-                app.get('/' + route, (req: any, res: any) => {
+                app.get('/' + route, (req: Request, res: Response) => {
                         authenticate(req, res, () => {
                                 res.sendFile(file ? file : route, { 'root': __dirname + "/../served" })
                         })
                 })
         } else {
-                app.get('/' + route, (req: any, res: any) => {
+                app.get('/' + route, (req: Request, res: Response) => {
                         res.sendFile(file ? file : route, { 'root': __dirname + "/../served" })
                 })
         }
