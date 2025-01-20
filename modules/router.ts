@@ -1,7 +1,7 @@
 import * as bodyParser from "body-parser";
 const cookieParser = require("cookie-parser");
 import express, { Request, Response } from 'express';
-import { addFriend, authenticate, handleFriend, handleUser, inviteFriend, messageFriend, setFriendRequestMode, setSilentMode, unblockUser } from "./accounts";
+import { addFriend, authenticate, readMessages, handleFriend, handleUser, inviteFriend, messageFriend, setFriendRequestMode, setSilentMode, unblockUser } from "./accounts";
 import { DirectMessageChannel, GameData, JoinGameRes, SendData, SubscriptionInformation, UserLoginRes } from "./types";
 import { chat, game, joinGame, makeMove, playerKeys, playerList, players, rankings, removePlayer, sendData, sendMessage, voteStartGame } from "./game";
 import { addToSubscriberDB, getDirectMessageChannels } from "./files";
@@ -49,7 +49,7 @@ app.get('/get', (req: Request, res: Response) => {
                         });
                 });
 
-                directMessageChannels.filter((channel) => channel.initiatedBy == user.username || channel.receiver == user.username)
+                directMessageChannels = directMessageChannels.filter((channel) => channel.initiatedBy == user.username || channel.receiver == user.username)
 
                 allowedData.live = sendData;
                 allowedData.chat = chat
@@ -59,7 +59,9 @@ app.get('/get', (req: Request, res: Response) => {
                         friends: user.friends,
                         friendRequests: user.friendRequests,
                         blockedUsers: user.blockedUsers,
-                        directMessageChannels: directMessageChannels
+                        directMessageChannels: directMessageChannels,
+                        acceptingFriendRequests: user.acceptingFriendRequests,
+                        silent: user.silent
                 }
 
                 res.send(allowedData)
@@ -93,7 +95,7 @@ app.post('/post', (req: Request, res: Response) => {
                         return;
                 }
 
-                if (action == "handleFriend" && body.username && (body.accept == false || body.accept == true) && userIndex) {
+                if (action == "handleFriend" && body.username && (body.accept == false || body.accept == true) && userIndex !== undefined) {
                         console.log(body.username, body.accept)
 
                         handleFriend(userIndex, body.username, body.accept).then((response) => {
@@ -103,19 +105,19 @@ app.post('/post', (req: Request, res: Response) => {
                         return;
                 }
 
-                if (action == "silentToggle" && userIndex && (body.mode == false || body.mode == true)) {
-                        setSilentMode(userIndex, body.silent)
+                if (action == "silentToggle" && userIndex !== undefined && (body.mode == false || body.mode == true)) {
+                        setSilentMode(userIndex, body.mode)
                 }
 
-                if (action == "acceptRequestToggle" && userIndex && (body.mode == false || body.mode == true)) {
+                if (action == "acceptRequestsToggle" && userIndex !== undefined && (body.mode == false || body.mode == true)) {
                         setFriendRequestMode(userIndex, body.mode)
                 }
 
-                if (action == "unblock" && userIndex && body.user) {
+                if (action == "unblock" && userIndex !== undefined && body.user) {
                         unblockUser(userIndex, body.user)
                 }
 
-                if (action == "addFriend" && body.username && userIndex) {
+                if (action == "addFriend" && body.username && userIndex !== undefined) {
                         addFriend(userIndex, body.username).then((response) => {
                                 res.send({ res: response })
                         })
@@ -126,6 +128,11 @@ app.post('/post', (req: Request, res: Response) => {
                         messageFriend(user, body.username, body.message).then((response) => {
                                 res.send({ res: response })
                         })
+                        return;
+                }
+
+                if (action == "readMessages" && body.friend && body.messageReverseIndices) {
+                        readMessages(user, body.friend, body.messageReverseIndices)
                         return;
                 }
 

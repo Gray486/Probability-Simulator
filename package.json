@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pm2": "NODE_ENV=production pm2 start index.ts --watch -- port 8004"
   },
   "author": "",
   "license": "ISC",

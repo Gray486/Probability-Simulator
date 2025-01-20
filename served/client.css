@@ -115,6 +115,7 @@ body {
 
 #friendsDiv {
     background-color: #5ea666;
+    overflow: scroll;
 }
 
 #settingsSwitch {
@@ -124,6 +125,25 @@ body {
 
 #settingsDiv {
     background-color: #b4af54;
+    text-align: center;
+}
+
+#settingsDiv label {
+    font-size: 20px;
+}
+
+#settingsDiv input {
+    transform: scale(1.5);
+}
+
+#settingsDiv h1 {
+    font-size: 40px;
+}
+
+#settingsDiv #credits {
+    position: absolute;
+    bottom: 15px;
+    width: 100%;
 }
 
 #chatDiv {

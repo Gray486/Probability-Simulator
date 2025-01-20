@@ -1,9 +1,9 @@
 import * as jwt from "jsonwebtoken";
 import * as googleAuth from "google-auth-library";
-import { DirectMessageChannel, User, UserLoginRes } from "./types";
+import { DirectMessageChannel, Message, User, UserLoginRes } from "./types";
 import { Request, Response } from 'express';
 import { addUser, getDirectMessageChannels, getUserDBAsync, KEYS, setDirectMessageChannels, setUserDB } from "./files";
-import { sendPushNotification } from "./push";
+import { lastOnline, sendPushNotification } from "./push";
 
 const { JWT_SECRET, G_CLIENT_ID } = KEYS;
 
@@ -39,10 +39,12 @@ export function authenticate(req: Request, res: Response, next: (user: User, use
                 // Finds user
                 const userIndex: number = accounts.findIndex((value: User) => value.id == id)
 
-                if (userIndex != -1) {
+                if (userIndex == -1) {
                         res.status(401).sendFile("401.html", { 'root': __dirname + "/../served" })
                         return;
                 }
+
+                lastOnline[accounts[userIndex].username] = new Date().getTime();
 
                 // Continues on to the actual route, giving it the user and their game key
                 next(accounts[userIndex], userIndex, key)
@@ -185,6 +187,10 @@ export async function handleFriend(userIndex: number, friendUsername: string, ac
                 // Removes friend from user's friend list if applicable
                 const userFriendIndex = userDB[userIndex].friends.indexOf(friendUsername)
                 userDB[userIndex].friends.splice(userFriendIndex, userFriendIndex < 0 ? 0 : 1)
+
+                // Removes user from friend's friend list if applicable
+                const friendFriendIndex = userDB[friendIndex].friends.indexOf(username)
+                userDB[friendIndex].friends.splice(friendFriendIndex, friendFriendIndex < 0 ? 0 : 1)
         }
 
         userDB[userIndex].friendRequests.splice(userFriendIndex, userFriendIndex < 0 ? 0 : 1)
@@ -229,8 +235,6 @@ export async function addFriend(userIndex: number, friendUsername: string): Prom
                 userDB[userIndex].blockedUsers.splice(userDB[userIndex].blockedUsers.indexOf(friendUsername))
         }
 
-        console.log("user already requested: " + userDB[friendIndex].friendRequests.includes(username))
-
         if (userDB[userIndex].friendRequests.includes(friendUsername)) {
                 handleFriend(userIndex, friendUsername, true)
         } else if (!userDB[friendIndex].friendRequests.includes(username)) {
@@ -248,8 +252,6 @@ export async function addFriend(userIndex: number, friendUsername: string): Prom
  * @param friendUsername The friend that is being invited.
  */
 export async function inviteFriend(user: User, friendUsername: string): Promise<"OK" | "friendNotFound" | "friendCannotBeInvited"> {
-        console.log("friend invited")
-
         if (!user.friends.includes(friendUsername)) {
                 return "friendNotFound";
         }
@@ -278,15 +280,17 @@ export async function inviteFriend(user: User, friendUsername: string): Promise<
  * Message a friend.
  * @param user The user that is messaging.
  * @param friendUsername The friend being messaged
- * @param message The message to send.
+ * @param content The message to send.
  */
-export async function messageFriend(user: User, friendUsername: string, message: string): Promise<"friendNotFound" | "OK"> {
+export async function messageFriend(user: User, friendUsername: string, content: string): Promise<"friendNotFound" | "OK"> {
         // Gets userDB asyncronously by creating a promise that yeilds the userDB. 
         const userDB = await new Promise<User[]>((resolve) => {
                 getUserDBAsync((userDB) => {
                         resolve(userDB);
                 });
         });
+
+        console.log(friendUsername)
 
         // Gets DB indexes of both users
         const friendIndex: number = userDB.findIndex((user: User) => user.username == friendUsername)
@@ -295,11 +299,20 @@ export async function messageFriend(user: User, friendUsername: string, message:
                 return "friendNotFound";
         }
 
-        if (message.length > 50) {
-                message = message.slice(0, 50);
+        if (content.length > 50) {
+                content = content.slice(0, 50);
         }
 
-        message = `${user.username}: ${message}`
+        sendPushNotification(friendUsername, `${user.username} sent you a message.`, content)
+
+        let message: Message = {
+                from: user.username,
+                content: content,
+                timestamp: new Date().getTime(),
+                read: false
+        }
+
+        console.log(message)
 
         const directMessageChannels = await new Promise<DirectMessageChannel[]>((resolve) => {
                 getDirectMessageChannels((directMessageChannels) => {
@@ -371,5 +384,23 @@ export function unblockUser(userIndex: number, blocked: string) {
                         userDB[userIndex].blockedUsers.splice(blockListIndex, 1)
                         setUserDB(userDB);
                 }
+        })
+}
+
+export function readMessages(user: User, friendUsername: string, messageReverseIndices: number[]) {
+        getDirectMessageChannels((directMessageChannels) => {
+                const dmIndex: number = directMessageChannels.findIndex((dmChannel) => (
+                        (
+                                dmChannel.initiatedBy == user.username && dmChannel.receiver == friendUsername
+                        ) || (
+                                dmChannel.receiver == user.username && dmChannel.initiatedBy == friendUsername
+                        )
+                ))
+
+                for (let i = 0; i < messageReverseIndices.length; i++) {
+                        directMessageChannels[dmIndex].messages[directMessageChannels.length - messageReverseIndices[i]].read = true;
+                }
+
+                setDirectMessageChannels(directMessageChannels)
         })
 }

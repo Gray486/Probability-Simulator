@@ -1,5 +1,5 @@
 import { setRankings } from "./modules/game";
-import { openWebServer } from "./modules/routing";
+import { openWebServer } from "./modules/router";
 
 let port: number = 8000;
 

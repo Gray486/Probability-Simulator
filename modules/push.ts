@@ -1,8 +1,10 @@
 import * as webpush from "web-push";
 import { getSubscriberDBAsync, KEYS } from "./files";
-import { SubscriptionInformation } from "./types";
+import { LastOnline, SubscriptionInformation } from "./types";
 
 const { VAPID } = KEYS;
+
+export let lastOnline: LastOnline = {};
 
 webpush.setVapidDetails(VAPID.SUBJECT, VAPID.PUBLIC_KEY, VAPID.PRIVATE_KEY);
 
@@ -25,9 +27,7 @@ export function blastPushNotifications(title: string, body: string): void {
 
                         try {
                                 await webpush.sendNotification(webPushSubscription, JSON.stringify(payload));
-                        } catch (err) {
-                                console.log("Error sending push.")
-                        }
+                        } catch (err) { }
                 }
         })
 
@@ -35,12 +35,17 @@ export function blastPushNotifications(title: string, body: string): void {
 
 /**
  * Send a push notification to specified user.
+ * @param username The user to send a push to.
  * @param title Title of push notification.
  * @param body Body of push notification.
  */
 export function sendPushNotification(username: string, title: string, body: string): void {
+        console.log(lastOnline)
+
+        if (lastOnline[username] && new Date().getTime() - lastOnline[username] < 5000) return;
+
         getSubscriberDBAsync(async (subscribers: SubscriptionInformation[]) => {
-                subscribers.filter((a) => a.username == username)
+                subscribers = subscribers.filter((a) => a.username == username)
 
                 for (let i = 0; i < subscribers.length; i++) {
                         const subscription = subscribers[i];
@@ -54,10 +59,7 @@ export function sendPushNotification(username: string, title: string, body: stri
 
                         try {
                                 await webpush.sendNotification(webPushSubscription, JSON.stringify(payload));
-                                console.log("Sent push to " + username)
-                        } catch (err) {
-                                console.log("Error sending push to " + username)
-                        }
+                        } catch (err) { }
                 }
         })
 }
