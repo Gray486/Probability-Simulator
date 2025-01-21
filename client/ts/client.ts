@@ -1,18 +1,19 @@
-let data = {};
+import { Message, Move, Player, PostObject, Ranking, SendData } from "../../types";
+import { KnownInformation, PlayerInformation, SettingsPanels } from "./types";
+
+let data: SendData;
 
 /** Information that is currently known about the game. */
-let known = {
-        players: [],
+let known: KnownInformation = {
         nextSpin: 1,
         started: false,
         round: 1,
         canJoin: null,
-        winner: "",
         alive: false
 };
 
 /** The name and spectator status of the player. */
-let me = {
+let me: PlayerInformation = {
         name: "",
         spectator: false
 };
@@ -23,13 +24,9 @@ if (window.location.host == "dev.grayjn.com") {
         })
 }
 
-let dmInterval;
+let dmInterval: NodeJS.Timeout;
 
-function makeUser(name, password, realName) {
-        console.log(`"${name}": {"username": "${name}", "password": "${password}", "name": "${realName}", "score": 0, "wins": 0}`)
-}
-
-async function post(data) {
+async function post(data: PostObject) {
         const url = "/post"
         return fetch(url, {
                 method: "POST",
@@ -98,7 +95,7 @@ const props = {
         ]
 }
 
-let overlays = [new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image()]
+let overlays: HTMLImageElement[] = [new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image()]
 overlays[0].src = "https://i.ibb.co/HVWxZgh/Overlay.png";
 overlays[1].src = "https://i.ibb.co/RPcCrgk/Overlay-1.png";
 overlays[2].src = "https://i.ibb.co/ggCKYxT/Overlay-2.png";
@@ -114,15 +111,16 @@ overlays[11].src = "https://i.ibb.co/XLgxKgr/Overlay-11.png";
 overlays[12].src = "https://i.ibb.co/Vt6x01r/Overlay-12.png";
 overlays[13].src = "https://i.ibb.co/BV2DvGf/Overlay-13.png";
 
-const container = document.querySelector('#wheel');
+const container: Element | null = document.querySelector('#wheel');
 
-let wheel;
+let wheel: any;
 makeWheel()
 
 function makeWheel() {
+        //@ts-ignore
         wheel = new spinWheel.Wheel(container, props);
 
-        for (i = 0; i < 12; i++) {
+        for (let i: number = 0; i < 12; i++) {
                 wheel.itemBackgroundColors[i] = "#863dd9"
         }
 
@@ -136,29 +134,29 @@ function makeWheel() {
         wheel.itemLabelBaselineOffset = -0.2;
 }
 
-let playTimer = 0;
-let playTimerInterval = null;
+let playTimer: number = 0;
+let playTimerInterval: NodeJS.Timeout;
 
-function numberChosen(number) {
+function numberChosen(number: number) {
         if (playTimerInterval) {
                 clearInterval(playTimerInterval)
                 $("#timer").hide()
         }
 
-        let index = wheel.items.findIndex((a) => a.label == number)
+        let index: number = wheel.items.findIndex((a: any) => a.label == number)
 
         if (index == -1) {
                 console.error("Number not found on wheel")
                 return;
         }
 
-        wheel.spinToItem(index, 7000, false, 2, 1, (x) => -Math.pow(Math.min(1, Math.max(0, -x + 1)), 3) + 1)
+        wheel.spinToItem(index, 7000, false, 2, 1, (x: number) => -Math.pow(Math.min(1, Math.max(0, -x + 1)), 3) + 1)
 
         setTimeout(function () {
                 wheel.items.splice([index], 1)
                 wheel.items[0].labelColor = "black"
 
-                wheel.items.forEach((item) => {
+                wheel.items.forEach((item: any) => {
                         if (item.label > number) {
                                 item.backgroundColor = "#d9d93d"
                         } else {
@@ -168,12 +166,12 @@ function numberChosen(number) {
 
                 $("#pot").text(data.game.points)
                 wheel.overlayImage = overlays[number]
-
-                if (data.players.find(a => a.gameName == me.name).alive) {
+ 
+                if (data.players.find((a: Player) => a.gameName == me.name)?.alive) {
                         $("#controls button").prop("disabled", false)
                 }
 
-                for (i = 0; i < data.players.length; i++) {
+                for (let i: number = 0; i < data.players.length; i++) {
                         if (!data.players[i].alive && data.players[i].lastMove != "bank") {
                                 $(`#player-${data.players[i].gameName} #play`).html(`<i class="bi bi-x-square-fill" style="color: red;"></i>`)
                         }
@@ -186,7 +184,7 @@ function numberChosen(number) {
                 playTimerInterval = setInterval(function () {
                         playTimer++;
                         $("#timer").text(20 - playTimer)
-                        if (playTimer > 20) {
+                        if (playTimer > 20 && playTimerInterval) {
                                 $("#timer").hide()
                                 clearInterval(playTimerInterval)
                         }
@@ -219,18 +217,20 @@ $("#join").click(function () {
         $("#joinDiv").hide()
         $("#wheel").show()
 
-        if (!$("#name").val()) {
-                $("#name").val(data.me.name)
+        let name: string | undefined = $("#name").val()?.toString()
+
+        if (!name) {
+                name = data.me.name;
         }
 
         post({
                 action: "join",
-                name: $("#name").val()
+                name: name
         }).then(function (res) {
                 console.log(res)
 
-                if (res == "OK") {
-                        me.name = $("#name").val()
+                if (res == "OK" && name) {
+                        me.name = name
                         $("#controls").show()
                         $("#controls button").prop("disabled", true)
                 } else {
@@ -249,10 +249,15 @@ $("#msgText").on("keyup", function (e) {
 })
 
 $("#msg").click(function () {
+
+        let message: string | undefined = $("#msgText").val()?.toString()
+
+        if (!message) return;
+
         if (me.spectator) {
-                post({ action: "chat", msg: $("#msgText").val() })
+                post({ action: "chat", message: message })
         } else {
-                post({ name: me.name, action: "chat", msg: $("#msgText").val() })
+                post({ name: me.name, action: "chatInGame", message: message })
         }
         $("#msgText").val("")
 })
@@ -307,7 +312,7 @@ $("#friendsSwitch").click(function () {
         openFriendsPanel()
 })
 
-function openPanel(id) {
+function openPanel(id: SettingsPanels) {
         if (dmInterval && id != "#dmDiv") { clearInterval(dmInterval) }
 
         let divs = ["#chatDiv", "#rankingsDiv", "#friendsDiv", "#settingsDiv", "#requestsDiv", "#dmDiv"]
@@ -319,7 +324,7 @@ function openPanel(id) {
         $(id).fadeIn(100)
 }
 
-function play(move) {
+function play(move: Move) {
         $("#controls button").prop("disabled", true)
         post({
                 action: "play",
@@ -348,11 +353,11 @@ const moveStyler = {
         stillOut: `<i class="bi bi-x-square-fill" style="color: red;"></i>`
 }
 
-let starttime;
-let starttimer;
+let starttime: number;
+let starttimer: NodeJS.Timeout;
 
 reloadData(true)
-function reloadData(firstTime) {
+function reloadData(firstTime: boolean = false) {
         setTimeout(async function () {
                 let lastData = data
                 data = await get()
@@ -371,11 +376,11 @@ function reloadData(firstTime) {
 
                                         known.nextSpin = data.game.spinNumber++
 
-                                        let spunNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].filter(a => !data.game.numbersLeft.includes(a))
+                                        let spunNumbers: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].filter(a => !data.game.numbersLeft.includes(a))
 
                                         setTimeout(function () {
-                                                for (i = 0; i < spunNumbers.length; i++) {
-                                                        let index = wheel.items.findIndex((a) => a.label == spunNumbers[i])
+                                                for (let i: number = 0; i < spunNumbers.length; i++) {
+                                                        let index = wheel.items.findIndex((a: any) => a.label == spunNumbers[i])
                                                         wheel.items.splice(index, 1)
                                                 }
 
@@ -392,7 +397,7 @@ function reloadData(firstTime) {
                         let playersData = data.players;
                         playersData.sort((a, b) => b.score - a.score)
 
-                        for (i = 0; i < playersData.length; i++) {
+                        for (let i: number = 0; i < playersData.length; i++) {
                                 let player = playersData[i].gameName
                                 let playerData = playersData[i]
                                 $("#players").append(`
@@ -406,13 +411,10 @@ function reloadData(firstTime) {
                                 `)
                         }
 
-                        let myData = data.players.find((a) => a.gameName == me.name)
-
-                        console.log(myData?.alive)
+                        let myData: Player | undefined = data.players.find((a) => a.gameName == me.name)
 
                         if (myData?.alive && myData.alive !== known.alive) {
                                 known.alive = myData.alive;
-                                console.log(known.alive)
                                 if (!myData.alive) {
                                         console.log("busted!")
                                         $("#newRound").text("You busted!!")
@@ -483,7 +485,7 @@ function reloadData(firstTime) {
                                         makeRankings()
                                 }, 750)
                                 known.nextSpin = 1;
-                                known.started = 0;
+                                known.started = false;
                                 clearInterval(playTimerInterval)
                                 $("#newRound").fadeIn(500)
                                 setTimeout(function () {
@@ -500,10 +502,6 @@ function reloadData(firstTime) {
                                 }, 3000)
                         }
 
-                        if (data.players.length > 0) {
-                                known.winner = data.players.sort((a, b) => b.score - a.score)[0]
-                        }
-
                         known.round = data.game.round;
                         wheel.remove()
                         wheel = null;
@@ -516,6 +514,7 @@ function reloadData(firstTime) {
                 }
 
                 if (firstTime) {
+                        $("#versionNumber").text("Version: " + data.version)
                         $("#joinDiv #name").attr("placeholder", data.me.username);
                         $("#settingsUsername").text(data.me.username)
                         $("#allPushToggle").prop("checked", data.me.silent)
@@ -527,20 +526,18 @@ function reloadData(firstTime) {
 }
 
 async function makeRankings() {
-        let players = (await get()).rankings;
+        let players: Ranking[] = (await get()).rankings;
 
-        let byWins = [...players.sort((a, b) => b.wins - a.wins)]
-        byWins = byWins.filter((a) => a.wins !== 0)
+        let byWins: Ranking[] = [...players.sort((a: Ranking, b: Ranking) => b.wins - a.wins)]
+        byWins = byWins.filter((a: Ranking) => a.wins !== 0)
 
-        let byScore = [...players.sort((a, b) => b.score - a.score)]
-        byScore = byScore.filter((a) => a.score !== 0);
+        let byScore: Ranking[] = [...players.sort((a: Ranking, b: Ranking) => b.score - a.score)]
+        byScore = byScore.filter((a: Ranking) => a.score !== 0);
 
         $("#byScore").html(`<span class="rankingTitle">Score</span>`)
         $("#byWins").html(`<span class="rankingTitle">Wins</span>`)
 
-        console.log(byWins)
-
-        for (let i = 0; i < players.length; i++) {
+        for (let i: number = 0; i < players.length; i++) {
                 $("#byScore").append(`
                         <div class="ranking">
                                 <span id="name">${byScore[i].name}</span>
@@ -566,7 +563,7 @@ if (false) {
         $("#controls").hide()
 }
 
-var backgroundMusic = new Audio('/audio.m4a');
+var backgroundMusic: HTMLAudioElement = new Audio('/audio.m4a');
 backgroundMusic.addEventListener('ended', function () {
         this.currentTime = 0;
         this.play();
@@ -590,10 +587,9 @@ $(window).on("unload", function () {
 const publicVapidKey = "BEORef-fuEOyljiEmeRuLSf17uqmGGKNN0Y4kNF3XbGYr6KfukGSbCj5AkSGsBpT8vUB6GV0cLoZsv9g3MG_XSg";
 
 async function subscribeToPush() {
+        const workers: readonly ServiceWorkerRegistration[] = await navigator.serviceWorker.getRegistrations()
 
-        const workers = await navigator.serviceWorker.getRegistrations()
-
-        let register;
+        let register: ServiceWorkerRegistration;
 
         if (workers.length > 0) {
                 console.log("Service worker already registered.")
@@ -607,7 +603,7 @@ async function subscribeToPush() {
 
         if (!(await register.pushManager.getSubscription())) {
                 console.log("Registering Push...");
-                const subscription = await register.pushManager.subscribe({
+                const subscription: PushSubscription = await register.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
                 });
@@ -626,16 +622,16 @@ async function subscribeToPush() {
 
 }
 
-function urlBase64ToUint8Array(base64String) {
-        const padding = "=".repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding)
+function urlBase64ToUint8Array(base64String: string) {
+        const padding: string = "=".repeat((4 - base64String.length % 4) % 4);
+        const base64: string = (base64String + padding)
                 .replace(/\-/g, "+")
                 .replace(/_/g, "/");
 
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
+        const rawData: string = window.atob(base64);
+        const outputArray: Uint8Array = new Uint8Array(rawData.length);
 
-        for (let i = 0; i < rawData.length; ++i) {
+        for (let i: number = 0; i < rawData.length; ++i) {
                 outputArray[i] = rawData.charCodeAt(i);
         }
         return outputArray;
@@ -653,6 +649,8 @@ function createEventsFriendMenuButtons() {
         $("#addFriend").off('click');
         $("#addFriend").click(function () {
                 const friendName = prompt("Please enter the username of the user you would like to friend.")
+                if (!friendName) return;
+
                 post({ action: "addFriend", username: friendName }).then((res) => {
                         if (res !== "OK") {
                                 alert(`ERROR: ${res}`)
@@ -726,9 +724,11 @@ function createEventsFriendMenuButtons() {
 
 }
 
-function markDmsRead(friend) {
-        const allMessages = data.me.directMessageChannels.find((a) => a.receiver == friend || a.initiatedBy == friend).messages
-        let unreadMessageReverseIndices = [];
+function markDmsRead(friend: string) {
+        const allMessages: Message[] | undefined = data.me.directMessageChannels.find((a) => a.receiver == friend || a.initiatedBy == friend)?.messages
+        if (!allMessages || allMessages.length !== 0) return;
+
+        let unreadMessageReverseIndices: number[] = [];
         for (let i = 0; i < allMessages.length; i++) {
                 if (!allMessages[i].read) {
                         unreadMessageReverseIndices.push(allMessages.length - i)
@@ -763,8 +763,11 @@ function openFriendsPanel() {
 }
 
 $("#dmMsg").click(function () {
+        const message: string | undefined = $("#dmMsgText").val()?.toString();
+        if (!message) return;
+
         post({
-                action: "messageFriend", username: $(this).data("username"), message: $("#dmMsgText").val(),
+                action: "messageFriend", username: $(this).data("username"), message: message,
         })
 
         $("#dmMsgText").val("")
@@ -777,13 +780,10 @@ $("#dmMsgText").on("keyup", function (e) {
         }
 })
 
-function openDmFriendPanel(friend, reload = false) {
-        const messagesIndex = data.me.directMessageChannels.findIndex((a) => a.receiver == friend || a.initiatedBy == friend);
-        let messages = []
-        if (messagesIndex != -1) {
-                messages = data.me.directMessageChannels[messagesIndex].messages;
-        }
+function openDmFriendPanel(friend: string, reload: boolean = false) {
+        const messages: Message[] | undefined = data.me.directMessageChannels.find((a) => a.receiver == friend || a.initiatedBy == friend)?.messages;
 
+        if (!messages) return;
 
         $("#dmMsg").data("username", friend)
         let chatText = ""
@@ -800,15 +800,18 @@ function openDmFriendPanel(friend, reload = false) {
 }
 
 $("#allPushToggle").click(function () {
-        post({ action: "silentToggle", mode: this.checked })
+        const toggle = this as HTMLInputElement;
+        post({ action: "silentToggle", mode: toggle.checked })
 })
 
 $("#acceptRequestsBox").click(function () {
-        post({ action: "acceptRequestsToggle", mode: this.checked })
+        const toggle = this as HTMLInputElement;
+        post({ action: "acceptRequestsToggle", mode: toggle.checked })
 })
 
 $("#toggleMusic").click(function () {
-        if (!this.checked) {
+        const toggle = this as HTMLInputElement;
+        if (!toggle.checked) {
                 backgroundMusic.volume = 0;
         } else {
                 backgroundMusic.volume = 0.1;

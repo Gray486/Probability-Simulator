@@ -1,5 +1,5 @@
 import { getUserDBAsync, logChatMessage, setUserDB } from "./files";
-import { Player, User, PlayerKeys, Game, Move, Ranking, GameTimers, JoinGameRes } from "./types";
+import { Player, User, PlayerKeys, Game, Move, Ranking, GameTimers, JoinGameRes } from "../types";
 import * as crypto from "node:crypto";
 
 /** Game keys associated with specific players (by gameName) to validate who they are. */

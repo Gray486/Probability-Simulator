@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { ChatLog, KeysFile, SubscriptionInformation, User, DirectMessageChannel } from "./types";
+import { ChatLog, KeysFile, SubscriptionInformation, User, DirectMessageChannel } from "../types";
 
 const USER_DB_FILE_PATH: string = __dirname + "/../storage/accounts.json";
 const KEYS_FILE_PATH: string = __dirname + "/../storage/keys.json"

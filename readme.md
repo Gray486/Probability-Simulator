@@ -1,4 +1,4 @@
-# Casino Simulator
+# Probability Simulator
 ## How to setup
 In the root directory of the project you need to create a "storage" folder in the root of the project with the following files and contents:
  - accounts.json: `[]`
@@ -16,3 +16,6 @@ In the root directory of the project you need to create a "storage" folder in th
 	JWT_SECRET: YOUR_JWT_SECRET
 }
    ```
+## Running
+To specify the port to run the server on, simply type "port ####" when running the index file.
+Ex: "node index.js port 9999"

@@ -1,6 +1,6 @@
 import * as webpush from "web-push";
 import { getSubscriberDBAsync, KEYS } from "./files";
-import { LastOnline, SubscriptionInformation } from "./types";
+import { LastOnline, SubscriptionInformation } from "../types";
 
 const { VAPID } = KEYS;
 

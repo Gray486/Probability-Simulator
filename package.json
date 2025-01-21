@@ -4,14 +4,17 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "pm2": "NODE_ENV=production pm2 start index.ts --watch -- port 8004"
+    "compileClient": "tsc --project ./client/ts/",
+    "watchClient": "tsc --project ./client/ts/ --watch",
+    "dev": "npm run compileClient && ts-node index.ts port 8004",
+    "pm2": "NODE_ENV=production pm2 start index.ts --watch -- port 8000"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.0",
+    "@types/jquery": "^3.5.32",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.1",
     "@types/web-push": "^3.6.4",

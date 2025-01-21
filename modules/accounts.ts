@@ -1,6 +1,6 @@
 import * as jwt from "jsonwebtoken";
 import * as googleAuth from "google-auth-library";
-import { DirectMessageChannel, Message, User, UserLoginRes } from "./types";
+import { DirectMessageChannel, Message, User, UserLoginRes } from "../types";
 import { Request, Response } from 'express';
 import { addUser, getDirectMessageChannels, getUserDBAsync, KEYS, setDirectMessageChannels, setUserDB } from "./files";
 import { lastOnline, sendPushNotification } from "./push";
@@ -16,7 +16,7 @@ const { JWT_SECRET, G_CLIENT_ID } = KEYS;
 export function authenticate(req: Request, res: Response, next: (user: User, userIndex?: number, key?: string) => void): void {
         // Makes sure token cookie exists
         if (!req.cookies.token) {
-                res.status(401).sendFile("401.html", { 'root': __dirname + "/../served" })
+                res.status(401).sendFile("401.html", { 'root': __dirname + "/../client/static" })
                 return;
         }
 
@@ -29,7 +29,7 @@ export function authenticate(req: Request, res: Response, next: (user: User, use
 
         // Makes sure payload is an object
         if (typeof payload == "string") {
-                res.status(401).sendFile("401.html", { 'root': __dirname + "/../served" })
+                res.status(401).sendFile("401.html", { 'root': __dirname + "/../client/static" })
                 return;
         } else {
                 id = payload.id;
@@ -40,7 +40,7 @@ export function authenticate(req: Request, res: Response, next: (user: User, use
                 const userIndex: number = accounts.findIndex((value: User) => value.id == id)
 
                 if (userIndex == -1) {
-                        res.status(401).sendFile("401.html", { 'root': __dirname + "/../served" })
+                        res.status(401).sendFile("401.html", { 'root': __dirname + "/../client/static" })
                         return;
                 }
 
@@ -271,7 +271,7 @@ export async function inviteFriend(user: User, friendUsername: string): Promise<
         userDB[reciverUserIndex].lastInvite = new Date().getTime();
         setUserDB(userDB)
 
-        sendPushNotification(friendUsername, "Invited to Casino Simulator!", `${user.username} has invited you to play!`);
+        sendPushNotification(friendUsername, "Invited to Probability Simulator!", `${user.username} has invited you to play!`);
 
         return "OK";
 }

@@ -2,9 +2,10 @@ import * as bodyParser from "body-parser";
 const cookieParser = require("cookie-parser");
 import express, { Request, Response } from 'express';
 import { addFriend, authenticate, readMessages, handleFriend, handleUser, inviteFriend, messageFriend, setFriendRequestMode, setSilentMode, unblockUser } from "./accounts";
-import { DirectMessageChannel, GameData, JoinGameRes, SendData, SubscriptionInformation, UserLoginRes } from "./types";
+import { DirectMessageChannel, GameData, JoinGameRes, PostObject, SendData, SubscriptionInformation, UserLoginRes } from "../types";
 import { chat, game, joinGame, makeMove, playerKeys, playerList, players, rankings, removePlayer, sendData, sendMessage, voteStartGame } from "./game";
 import { addToSubscriberDB, getDirectMessageChannels } from "./files";
+import { version } from "../index";
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.get('/get', (req: Request, res: Response) => {
 
                 allowedData.live = sendData;
                 allowedData.chat = chat
+                allowedData.version = version;
                 allowedData.me = {
                         name: user.realName,
                         username: user.username,
@@ -71,11 +73,10 @@ app.get('/get', (req: Request, res: Response) => {
 
 app.post('/post', (req: Request, res: Response) => {
         authenticate(req, res, (user, userIndex, key) => {
-                let body = req.body;
-                let action = body.action;
+                let body: PostObject = req.body;
 
                 // Joining game
-                if (action == "join" && body.name) {
+                if (body.action == "join" && body.name) {
                         const joinGameRes: JoinGameRes = joinGame(body.name, user, game.canJoin)
 
                         if (joinGameRes.status == "error") {
@@ -89,13 +90,13 @@ app.post('/post', (req: Request, res: Response) => {
                 }
 
                 // Chatting for players not in the game
-                if (action == "chat" && !body.name) {
-                        sendMessage(body.msg, user.realName, user.realName)
+                if (body.action == "chat" && body.message) {
+                        sendMessage(body.message, user.realName, user.realName)
                         res.send({ res: "OK" });
                         return;
                 }
 
-                if (action == "handleFriend" && body.username && (body.accept == false || body.accept == true) && userIndex !== undefined) {
+                if (body.action == "handleFriend" && body.username && (body.accept == false || body.accept == true) && userIndex !== undefined) {
                         console.log(body.username, body.accept)
 
                         handleFriend(userIndex, body.username, body.accept).then((response) => {
@@ -105,72 +106,67 @@ app.post('/post', (req: Request, res: Response) => {
                         return;
                 }
 
-                if (action == "silentToggle" && userIndex !== undefined && (body.mode == false || body.mode == true)) {
+                if (body.action == "silentToggle" && userIndex !== undefined && (body.mode == false || body.mode == true)) {
                         setSilentMode(userIndex, body.mode)
                 }
 
-                if (action == "acceptRequestsToggle" && userIndex !== undefined && (body.mode == false || body.mode == true)) {
+                if (body.action == "acceptRequestsToggle" && userIndex !== undefined && (body.mode == false || body.mode == true)) {
                         setFriendRequestMode(userIndex, body.mode)
                 }
 
-                if (action == "unblock" && userIndex !== undefined && body.user) {
-                        unblockUser(userIndex, body.user)
+                if (body.action == "unblock" && userIndex !== undefined && body.username) {
+                        unblockUser(userIndex, body.username)
                 }
 
-                if (action == "addFriend" && body.username && userIndex !== undefined) {
+                if (body.action == "addFriend" && body.username && userIndex !== undefined) {
                         addFriend(userIndex, body.username).then((response) => {
                                 res.send({ res: response })
                         })
                         return;
                 }
 
-                if (action == "messageFriend" && body.username && body.message) {
+                if (body.action == "messageFriend" && body.username && body.message) {
                         messageFriend(user, body.username, body.message).then((response) => {
                                 res.send({ res: response })
                         })
                         return;
                 }
 
-                if (action == "readMessages" && body.friend && body.messageReverseIndices) {
+                if (body.action == "readMessages" && body.friend && body.messageReverseIndices) {
                         readMessages(user, body.friend, body.messageReverseIndices)
                         return;
                 }
 
-                if (action == "inviteFriend" && body.username) {
+                if (body.action == "inviteFriend" && body.username) {
                         res.send({ res: inviteFriend(user, body.username) })
                         return;
                 }
 
                 // From here on out only players with their correct game key can do actions
                 // NOTE: Game keys can likely be removed due to new JWT implementation
-                if (!body.name || playerKeys[body.name] != key) {
-                        res.send({ res: "incorrectDataSent" })
-                        return;
-                }
 
                 // Chatting for players in the game
-                if (action == "chat" && body.name && key) {
-                        sendMessage(body.msg, body.name, user.realName);
+                if (body.action == "chatInGame" && body.message && body.name && key && playerKeys[body.name] == key) {
+                        sendMessage(body.message, body.name, user.realName);
                         res.send({ res: "OK" });
                         return;
                 }
 
                 // Starting the game
-                if (action == "start") {
+                if (body.action == "start" && body.name && key && playerKeys[body.name] == key) {
                         voteStartGame(user.username);
                         res.send({ res: "OK" });
                         return;
                 }
 
                 // Making a move
-                if (action == "play" && body.move && body.name) {
+                if (body.action == "play" && body.move && body.name && key && playerKeys[body.name] == key) {
                         makeMove(body.move, body.name)
                         res.send({ res: "OK" });
                         return;
                 }
 
                 res.send({ res: "incorrectDataSent" })
-
         })
 })
 
@@ -197,8 +193,8 @@ app.post('/subscribe', (req: Request, res: Response) => {
 // Protected static routes
 
 openStaticRoute("game", true, "client.html")
-openStaticRoute("client.js", true)
-openStaticRoute("worker.js", true)
+openStaticRoute("client.js", true, "js/client.js")
+openStaticRoute("worker.js", true, "js/worker.js")
 
 // Unprotected static routes
 
@@ -213,11 +209,11 @@ app.get('/status', (req: Request, res: Response) => {
 
 // Catch-all 404 page
 app.get("*", (req: Request, res: Response) => {
-        res.status(404).sendFile("404.html", { 'root': __dirname + "/../served" })
+        res.status(404).sendFile("404.html", { 'root': __dirname + "/../client/static" })
 })
 
 /**
- * Opens a static route at the "/../served/" directory.
+ * Opens a static route at the "/../client/static/" directory.
  * @param route Route to open. Omit starting "/".
  * @param protectedRoute Whether to protect the route. Defaults to true.
  * @param file Optinal: The relative file path for the route.
@@ -226,12 +222,12 @@ function openStaticRoute(route: string, protectedRoute: boolean = true, file?: s
         if (protectedRoute) {
                 app.get('/' + route, (req: Request, res: Response) => {
                         authenticate(req, res, () => {
-                                res.sendFile(file ? file : route, { 'root': __dirname + "/../served" })
+                                res.sendFile(file ? file : route, { 'root': __dirname + "/../client/static" })
                         })
                 })
         } else {
                 app.get('/' + route, (req: Request, res: Response) => {
-                        res.sendFile(file ? file : route, { 'root': __dirname + "/../served" })
+                        res.sendFile(file ? file : route, { 'root': __dirname + "/../client/static" })
                 })
         }
 }

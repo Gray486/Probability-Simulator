@@ -1,7 +1,11 @@
 import { setRankings } from "./modules/game";
 import { openWebServer } from "./modules/router";
 
+// Default port to run the server on
 let port: number = 8000;
+
+// Version number that shows up on settings page
+export const version = "2.0"
 
 // You can specify port on project run
 // EX: node index.js port 9999
