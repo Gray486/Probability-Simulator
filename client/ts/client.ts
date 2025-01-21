@@ -1,4 +1,4 @@
-import { Message, Move, Player, PostObject, Ranking, SendData } from "../../types";
+import { DirectMessageChannel, Message, Move, Player, PostObject, Ranking, SendData } from "../../types";
 import { KnownInformation, PlayerInformation, SettingsPanels } from "./types";
 
 let data: SendData;
@@ -195,7 +195,7 @@ function numberChosen(number: number) {
         }, 7000)
 }
 
-let images = [new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image()]
+let images: HTMLImageElement[] = [new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image(), new Image()]
 images[0].src = "https://i.ibb.co/7CjQrHJ/Lights-8.png";
 images[1].src = "https://i.ibb.co/G2Xts03/Lights-7.png";
 images[2].src = "https://i.ibb.co/RHzMpks/Lights-6.png";
@@ -206,7 +206,7 @@ images[6].src = "https://i.ibb.co/gFy4s26/Lights-2.png";
 images[7].src = "https://i.ibb.co/LYh5CN7/Lights-1.png";
 images[8].src = "https://i.ibb.co/Qbjdyx9/Lights.png";
 
-let currentImage = 0
+let currentImage: number = 0;
 
 setInterval(function () {
         wheel.image = images[currentImage]
@@ -220,7 +220,7 @@ $("#join").click(function () {
         $("#joinDiv").hide()
         $("#wheel").show()
 
-        let name: string | undefined = $("#name").val()?.toString()
+        let name: string | undefined = $("#name").val()?.toString();
 
         if (!name) {
                 name = data.me.name;
@@ -255,7 +255,7 @@ $("#msgText").on("keyup", function (e) {
 
 $("#msg").click(function () {
 
-        let message: string | undefined = $("#msgText").val()?.toString()
+        let message: string | undefined = $("#msgText").val()?.toString();
 
         if (!message) return;
 
@@ -320,9 +320,9 @@ $("#friendsSwitch").click(function () {
 function openPanel(id: SettingsPanels) {
         if (dmInterval && id != "#dmDiv") { clearInterval(dmInterval) }
 
-        let divs = ["#chatDiv", "#rankingsDiv", "#friendsDiv", "#settingsDiv", "#requestsDiv", "#dmDiv"]
+        let divs: SettingsPanels[] = ["#chatDiv", "#rankingsDiv", "#friendsDiv", "#settingsDiv", "#requestsDiv", "#dmDiv"]
 
-        for (let i = 0; i < divs.length; i++) {
+        for (let i: number = 0; i < divs.length; i++) {
                 if (divs[i] !== id) $(divs[i]).fadeOut(100)
         }
 
@@ -387,7 +387,7 @@ function reloadData(firstTime: boolean = false) {
 
                                         setTimeout(function () {
                                                 for (let i: number = 0; i < spunNumbers.length; i++) {
-                                                        let index = wheel.items.findIndex((a: any) => a.label == spunNumbers[i])
+                                                        let index: number = wheel.items.findIndex((a: any) => a.label == spunNumbers[i])
                                                         wheel.items.splice(index, 1)
                                                 }
 
@@ -401,12 +401,12 @@ function reloadData(firstTime: boolean = false) {
                                 }
                         }
 
-                        let playersData = data.players;
+                        let playersData: Player[] = data.players;
                         playersData.sort((a, b) => b.score - a.score)
 
                         for (let i: number = 0; i < playersData.length; i++) {
-                                let player = playersData[i].gameName
-                                let playerData = playersData[i]
+                                let player: string = playersData[i].gameName
+                                let playerData: Player = playersData[i]
                                 $("#players").append(`
                                         <div class="player" id="player-${player}">
                                                 <i class="bi bi-ticket-detailed-fill ticket-indicator" style="display: ${playerData.freeSpin ? "block" : "none"};"></i>
@@ -433,7 +433,7 @@ function reloadData(firstTime: boolean = false) {
                         }
 
                         if (!data.game.started) {
-                                let readyPlayers = data.players.filter(a => a.ready).length
+                                let readyPlayers: number = data.players.filter(a => a.ready).length
                                 if (readyPlayers > 0 && readyPlayers !== lastData?.players?.filter(a => a.ready)?.length) {
                                         if (starttimer) {
                                                 clearInterval(starttimer)
@@ -533,7 +533,7 @@ function reloadData(firstTime: boolean = false) {
 }
 
 async function makeRankings() {
-        const getData = await get()
+        const getData: SendData | undefined = await get()
         if (!getData) return;
 
         const rankings: Ranking[] = getData.rankings;
@@ -660,7 +660,7 @@ function createEventsFriendMenuButtons() {
 
         $("#addFriend").off('click');
         $("#addFriend").click(function () {
-                const friendName = prompt("Please enter the username of the user you would like to friend.")
+                const friendName: string | null = prompt("Please enter the username of the user you would like to friend.")
                 if (!friendName) return;
 
                 post({ action: "addFriend", username: friendName }).then((res) => {
@@ -674,27 +674,34 @@ function createEventsFriendMenuButtons() {
 
         $(".dm-friend").off('click');
         $(".dm-friend").click(function () {
-                const friend = $(this).parent().parent().data("username")
+                const friend: string | undefined = $(this).parent().parent().data("username")
+
+                if (!friend) return;
+
+                console.log(friend)
 
                 openDmFriendPanel(friend)
 
                 dmInterval = setInterval(() => {
-                        const friend = $(this).parent().parent().data("username")
+                        const friend: string | undefined = $(this).parent().parent().data("username")
+                        if (!friend) return;
                         openDmFriendPanel(friend, true)
                         markDmsRead(friend)
-                }, 500)
+                }, 1000)
         })
 
         $(".remove-friend").off('click');
         $(".remove-friend").click(function () {
-                const friend = $(this).parent().parent().data("username")
+                const friend: string | undefined = $(this).parent().parent().data("username")
+                if (!friend) return;
                 $("#friendsDiv").attr("inert", "")
                 post({ action: "handleFriend", username: friend, accept: false }).then((res) => { openFriendsPanel() })
         })
 
         $(".invite-friend").off('click');
         $(".invite-friend").click(function () {
-                const friend = $(this).parent().parent().data("username")
+                const friend: string | undefined = $(this).parent().parent().data("username")
+                if (!friend) return;
                 $("#friendsDiv").attr("inert", "")
                 post({ action: "inviteFriend", username: friend }).then((res) => { openFriendsPanel() })
         })
@@ -706,7 +713,7 @@ function createEventsFriendMenuButtons() {
                         <h3>Dening requests will <span class="underline">reversibly</span> block users.</h3>
                 `)
 
-                for (let i = 0; i < data.me.friendRequests.length; i++) {
+                for (let i: number = 0; i < data.me.friendRequests.length; i++) {
                         $("#requestsDiv").append(`
                                 <div class="friend-request" data-username="${data.me.friendRequests[i]}">
                                         <span class="name">${data.me.friendRequests[i]}</span>
@@ -722,13 +729,15 @@ function createEventsFriendMenuButtons() {
 
                 $(".deny-friend-request").off('click');
                 $(".deny-friend-request").click(function () {
-                        const friend = $(this).parent().parent().data("username")
+                        const friend: string | undefined = $(this).parent().parent().data("username")
+                        if (!friend) return;
                         post({ action: "handleFriend", username: friend, accept: false }).then((res) => { openFriendsPanel() })
                 })
 
                 $(".accept-friend-request").off('click');
                 $(".accept-friend-request").click(function () {
-                        const friend = $(this).parent().parent().data("username")
+                        const friend: string | undefined = $(this).parent().parent().data("username")
+                        if (!friend) return;
                         console.log(friend)
                         post({ action: "handleFriend", username: friend, accept: true }).then((res) => { openFriendsPanel() })
                 })
@@ -737,17 +746,30 @@ function createEventsFriendMenuButtons() {
 }
 
 function markDmsRead(friend: string) {
-        const allMessages: Message[] | undefined = data.me.directMessageChannels.find((a) => a.receiver == friend || a.initiatedBy == friend)?.messages
-        if (!allMessages || allMessages.length !== 0) return;
+        const channel: DirectMessageChannel | undefined = data.me.directMessageChannels.find((a: DirectMessageChannel) => {
+                return a.receiver == friend || a.initiatedBy == friend
+        }) 
+
+        if (!channel) {
+                return;
+        };
+
+        const allMessages = channel.messages;
 
         let unreadMessageReverseIndices: number[] = [];
-        for (let i = 0; i < allMessages.length; i++) {
-                if (!allMessages[i].read) {
+        for (let i: number = 0; i < allMessages.length; i++) {
+                if (!allMessages[i].read && allMessages[i].from == friend) {
                         unreadMessageReverseIndices.push(allMessages.length - i)
-                }
+                }  
         }
+        
+        console.log(friend)
+        console.log(allMessages)
+        console.log(unreadMessageReverseIndices)
 
-        post({ action: "readMessages", friend: friend, messageReverseIndices: unreadMessageReverseIndices })
+        if (unreadMessageReverseIndices.length > 0) {
+                post({ action: "readMessages", friend: friend, messageReverseIndices: unreadMessageReverseIndices })
+        }
 }
 
 function openFriendsPanel() {
@@ -756,7 +778,7 @@ function openFriendsPanel() {
                 <button class="friendButton" id="viewRequests">View requests</button>
         `)
 
-        for (let i = 0; i < data.me.friends.length; i++) {
+        for (let i: number = 0; i < data.me.friends.length; i++) {
                 $("#friendsDiv").append(`
                         <div class="friend" data-username="${data.me.friends[i]}">
                                 <span class="name">${data.me.friends[i]}</span>
@@ -795,14 +817,14 @@ $("#dmMsgText").on("keyup", function (e) {
 function openDmFriendPanel(friend: string, reload: boolean = false) {
         const messages: Message[] | undefined = data.me.directMessageChannels.find((a) => a.receiver == friend || a.initiatedBy == friend)?.messages;
 
-        if (!messages) return;
-
         $("#dmMsg").data("username", friend)
-        let chatText = ""
+        let chatText: string = ""
 
-        messages.forEach((message) => {
-                chatText += `\n${message.from}: ${message.content}`
-        })
+        if (messages) {
+                messages.forEach((message) => {
+                        chatText += `\n${message.from}: ${message.content}`
+                })
+        }
 
         $("#dmText").html(chatText)
 

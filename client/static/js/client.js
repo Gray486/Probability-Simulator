@@ -598,22 +598,31 @@ function createEventsFriendMenuButtons() {
     $(".dm-friend").off('click');
     $(".dm-friend").click(function () {
         const friend = $(this).parent().parent().data("username");
+        if (!friend)
+            return;
+        console.log(friend);
         openDmFriendPanel(friend);
         dmInterval = setInterval(() => {
             const friend = $(this).parent().parent().data("username");
+            if (!friend)
+                return;
             openDmFriendPanel(friend, true);
             markDmsRead(friend);
-        }, 500);
+        }, 1000);
     });
     $(".remove-friend").off('click');
     $(".remove-friend").click(function () {
         const friend = $(this).parent().parent().data("username");
+        if (!friend)
+            return;
         $("#friendsDiv").attr("inert", "");
         post({ action: "handleFriend", username: friend, accept: false }).then((res) => { openFriendsPanel(); });
     });
     $(".invite-friend").off('click');
     $(".invite-friend").click(function () {
         const friend = $(this).parent().parent().data("username");
+        if (!friend)
+            return;
         $("#friendsDiv").attr("inert", "");
         post({ action: "inviteFriend", username: friend }).then((res) => { openFriendsPanel(); });
     });
@@ -638,28 +647,41 @@ function createEventsFriendMenuButtons() {
         $(".deny-friend-request").off('click');
         $(".deny-friend-request").click(function () {
             const friend = $(this).parent().parent().data("username");
+            if (!friend)
+                return;
             post({ action: "handleFriend", username: friend, accept: false }).then((res) => { openFriendsPanel(); });
         });
         $(".accept-friend-request").off('click');
         $(".accept-friend-request").click(function () {
             const friend = $(this).parent().parent().data("username");
+            if (!friend)
+                return;
             console.log(friend);
             post({ action: "handleFriend", username: friend, accept: true }).then((res) => { openFriendsPanel(); });
         });
     });
 }
 function markDmsRead(friend) {
-    var _a;
-    const allMessages = (_a = data.me.directMessageChannels.find((a) => a.receiver == friend || a.initiatedBy == friend)) === null || _a === void 0 ? void 0 : _a.messages;
-    if (!allMessages || allMessages.length !== 0)
+    const channel = data.me.directMessageChannels.find((a) => {
+        return a.receiver == friend || a.initiatedBy == friend;
+    });
+    if (!channel) {
         return;
+    }
+    ;
+    const allMessages = channel.messages;
     let unreadMessageReverseIndices = [];
     for (let i = 0; i < allMessages.length; i++) {
-        if (!allMessages[i].read) {
+        if (!allMessages[i].read && allMessages[i].from == friend) {
             unreadMessageReverseIndices.push(allMessages.length - i);
         }
     }
-    post({ action: "readMessages", friend: friend, messageReverseIndices: unreadMessageReverseIndices });
+    console.log(friend);
+    console.log(allMessages);
+    console.log(unreadMessageReverseIndices);
+    if (unreadMessageReverseIndices.length > 0) {
+        post({ action: "readMessages", friend: friend, messageReverseIndices: unreadMessageReverseIndices });
+    }
 }
 function openFriendsPanel() {
     $("#friendsDiv").html(`					
@@ -700,13 +722,13 @@ $("#dmMsgText").on("keyup", function (e) {
 function openDmFriendPanel(friend, reload = false) {
     var _a;
     const messages = (_a = data.me.directMessageChannels.find((a) => a.receiver == friend || a.initiatedBy == friend)) === null || _a === void 0 ? void 0 : _a.messages;
-    if (!messages)
-        return;
     $("#dmMsg").data("username", friend);
     let chatText = "";
-    messages.forEach((message) => {
-        chatText += `\n${message.from}: ${message.content}`;
-    });
+    if (messages) {
+        messages.forEach((message) => {
+            chatText += `\n${message.from}: ${message.content}`;
+        });
+    }
     $("#dmText").html(chatText);
     if (!reload) {
         openPanel("#dmDiv");
