@@ -112,8 +112,6 @@ export function voteStartGame(username: string): void {
 export function makeMove(move: Move, gameName: string): boolean {
         let playerIndex = players.findIndex(a => a.gameName == gameName)
 
-        console.log(move)
-
         switch (move) {
                 case "bank":
                         players[playerIndex].score += game.points

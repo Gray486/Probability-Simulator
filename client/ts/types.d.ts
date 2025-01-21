@@ -2,7 +2,8 @@ import { Player } from "../../types"
 
 export type PlayerInformation = {
     name: string,
-    spectator: boolean
+    spectator: boolean,
+    joinedGame: boolean
 }
 
 export type KnownInformation = {

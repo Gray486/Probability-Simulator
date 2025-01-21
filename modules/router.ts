@@ -97,10 +97,7 @@ app.post('/post', (req: Request, res: Response) => {
                 }
 
                 if (body.action == "handleFriend" && body.username && (body.accept == false || body.accept == true) && userIndex !== undefined) {
-                        console.log(body.username, body.accept)
-
                         handleFriend(userIndex, body.username, body.accept).then((response) => {
-                                console.log(response)
                                 res.send({ res: response })
                         })
                         return;
@@ -193,7 +190,7 @@ app.post('/subscribe', (req: Request, res: Response) => {
 // Protected static routes
 
 openStaticRoute("game", true, "client.html")
-openStaticRoute("client.js", true, "js/client.js")
+openStaticRoute("js/client.js", true)
 openStaticRoute("worker.js", true, "js/worker.js")
 
 // Unprotected static routes

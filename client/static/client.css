@@ -115,7 +115,7 @@ body {
 
 #friendsDiv {
     background-color: #5ea666;
-    overflow: scroll;
+    overflow-y: auto;
 }
 
 #settingsSwitch {

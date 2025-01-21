@@ -290,8 +290,6 @@ export async function messageFriend(user: User, friendUsername: string, content:
                 });
         });
 
-        console.log(friendUsername)
-
         // Gets DB indexes of both users
         const friendIndex: number = userDB.findIndex((user: User) => user.username == friendUsername)
 
@@ -311,8 +309,6 @@ export async function messageFriend(user: User, friendUsername: string, content:
                 timestamp: new Date().getTime(),
                 read: false
         }
-
-        console.log(message)
 
         const directMessageChannels = await new Promise<DirectMessageChannel[]>((resolve) => {
                 getDirectMessageChannels((directMessageChannels) => {

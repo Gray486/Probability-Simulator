@@ -12,10 +12,7 @@ export const KEYS: KeysFile = JSON.parse(fs.readFileSync(KEYS_FILE_PATH).toStrin
 
 export function getUserDBAsync(next: (userDB: User[]) => void) {
         fs.readFile(USER_DB_FILE_PATH, (err, data) => {
-                if (err) {
-                        console.log(err)
-                        return;
-                }
+                if (err) return;
                 let userDB: User[] = JSON.parse(data.toString());
                 next(userDB)
         });
@@ -35,10 +32,7 @@ export function addUser(user: User): void {
 
 function getChatLogAsync(next: (data: ChatLog[]) => void): void {
         fs.readFile(CHAT_LOG_PATH, (err, data) => {
-                if (err) {
-                        console.log(err)
-                        return;
-                }
+                if (err) return;
                 let chatLog: ChatLog[] = JSON.parse(data.toString());
                 next(chatLog)
         });
@@ -58,10 +52,7 @@ export function logChatMessage(username: string, realName: string, message: stri
 
 export function getSubscriberDBAsync(next: (database: SubscriptionInformation[]) => void) {
         fs.readFile(SUBSCRIBERS_PATH, (err, data) => {
-                if (err) {
-                        console.log(err)
-                        return;
-                }
+                if (err) return;
                 let database: SubscriptionInformation[] = JSON.parse(data.toString());
                 next(database)
         })

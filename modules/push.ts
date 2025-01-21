@@ -40,8 +40,6 @@ export function blastPushNotifications(title: string, body: string): void {
  * @param body Body of push notification.
  */
 export function sendPushNotification(username: string, title: string, body: string): void {
-        console.log(lastOnline)
-
         if (lastOnline[username] && new Date().getTime() - lastOnline[username] < 5000) return;
 
         getSubscriberDBAsync(async (subscribers: SubscriptionInformation[]) => {

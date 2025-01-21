@@ -15,7 +15,8 @@ let known: KnownInformation = {
 /** The name and spectator status of the player. */
 let me: PlayerInformation = {
         name: "",
-        spectator: false
+        spectator: false,
+        joinedGame: false
 };
 
 if (window.location.host == "dev.grayjn.com") {
@@ -27,6 +28,8 @@ if (window.location.host == "dev.grayjn.com") {
 let dmInterval: NodeJS.Timeout;
 
 async function post(data: PostObject) {
+        console.log(data)
+
         const url = "/post"
         return fetch(url, {
                 method: "POST",
@@ -40,7 +43,7 @@ async function post(data: PostObject) {
         });
 }
 
-async function get() {
+async function get(): Promise<SendData | undefined> {
         try {
                 return fetch("/get").then((res) => res.json().then((res) => {
                         return res;
@@ -238,6 +241,8 @@ $("#join").click(function () {
                         $("#wheel").hide()
                         alert("ERROR: " + res.msg)
                 }
+
+                me.joinedGame = true;
         })
 })
 
@@ -254,7 +259,7 @@ $("#msg").click(function () {
 
         if (!message) return;
 
-        if (me.spectator) {
+        if (me.spectator || !me.joinedGame) {
                 post({ action: "chat", message: message })
         } else {
                 post({ name: me.name, action: "chatInGame", message: message })
@@ -359,10 +364,12 @@ let starttimer: NodeJS.Timeout;
 reloadData(true)
 function reloadData(firstTime: boolean = false) {
         setTimeout(async function () {
-                let lastData = data
-                data = await get()
+                let lastData: SendData | undefined = data;
+                const getData: SendData | undefined = await get()
+                if (!getData) return;
+                data = getData;
 
-                if (JSON.stringify(lastData.players) != JSON.stringify(data.players)) {
+                if (firstTime || JSON.stringify(lastData.players) != JSON.stringify(data.players)) {
                         console.log("Updating player data")
                         $("#players").html("")
 
@@ -452,7 +459,7 @@ function reloadData(firstTime: boolean = false) {
 
                 }
 
-                if (JSON.stringify(lastData.chat) !== JSON.stringify(data.chat)) {
+                if (lastData?.chat && data.chat && JSON.stringify(lastData.chat) !== JSON.stringify(data.chat)) {
                         $("#chatText").html(data.chat.join("\n"))
                 }
 
@@ -526,29 +533,34 @@ function reloadData(firstTime: boolean = false) {
 }
 
 async function makeRankings() {
-        let players: Ranking[] = (await get()).rankings;
+        const getData = await get()
+        if (!getData) return;
 
-        let byWins: Ranking[] = [...players.sort((a: Ranking, b: Ranking) => b.wins - a.wins)]
+        const rankings: Ranking[] = getData.rankings;
+
+        let byWins: Ranking[] = [...rankings.sort((a: Ranking, b: Ranking) => b.wins - a.wins)]
         byWins = byWins.filter((a: Ranking) => a.wins !== 0)
 
-        let byScore: Ranking[] = [...players.sort((a: Ranking, b: Ranking) => b.score - a.score)]
+        let byScore: Ranking[] = [...rankings.sort((a: Ranking, b: Ranking) => b.score - a.score)]
         byScore = byScore.filter((a: Ranking) => a.score !== 0);
 
-        $("#byScore").html(`<span class="rankingTitle">Score</span>`)
         $("#byWins").html(`<span class="rankingTitle">Wins</span>`)
+        $("#byScore").html(`<span class="rankingTitle">Score</span>`)
 
-        for (let i: number = 0; i < players.length; i++) {
-                $("#byScore").append(`
-                        <div class="ranking">
-                                <span id="name">${byScore[i].name}</span>
-                                <span id="score">${byScore[i].score}</span>
-                        </div>
-                `)
-
+        for (let i: number = 0; i < byWins.length; i++) {
                 $("#byWins").append(`
                         <div class="ranking">
                                 <span id="name">${byWins[i].name}</span>
                                 <span id="score">${byWins[i].wins}</span>
+                        </div>
+                `)
+        }
+
+        for (let i: number = 0; i < byScore.length; i++) {                
+                $("#byScore").append(`
+                        <div class="ranking">
+                                <span id="name">${byScore[i].name}</span>
+                                <span id="score">${byScore[i].score}</span>
                         </div>
                 `)
         }
