@@ -122,6 +122,8 @@ makeWheel();
 function makeWheel() {
     //@ts-ignore
     wheel = new spinWheel.Wheel(container, props);
+    if (!wheel)
+        return;
     for (let i = 0; i < 12; i++) {
         wheel.itemBackgroundColors[i] = "#863dd9";
     }
@@ -141,7 +143,9 @@ function numberChosen(number) {
         clearInterval(playTimerInterval);
         $("#timer").hide();
     }
-    let index = wheel.items.findIndex((a) => a.label == number);
+    if (!wheel)
+        return;
+    let index = wheel.items.findIndex((a) => a.label == number.toString());
     if (index == -1) {
         console.error("Number not found on wheel");
         return;
@@ -149,14 +153,18 @@ function numberChosen(number) {
     wheel.spinToItem(index, 7000, false, 2, 1, (x) => -Math.pow(Math.min(1, Math.max(0, -x + 1)), 3) + 1);
     setTimeout(function () {
         var _a;
-        wheel.items.splice([index], 1);
+        if (!wheel)
+            return;
+        wheel.items.splice(index, 1);
         wheel.items[0].labelColor = "black";
         wheel.items.forEach((item) => {
-            if (item.label > number) {
-                item.backgroundColor = "#d9d93d";
-            }
-            else {
-                item.backgroundColor = "#863dd9";
+            if (item.label) {
+                if (parseInt(item.label) > number) {
+                    item.backgroundColor = "#d9d93d";
+                }
+                else {
+                    item.backgroundColor = "#863dd9";
+                }
             }
         });
         $("#pot").text(data.game.points);
@@ -194,13 +202,15 @@ images[7].src = "https://i.ibb.co/LYh5CN7/Lights-1.png";
 images[8].src = "https://i.ibb.co/Qbjdyx9/Lights.png";
 let currentImage = 0;
 setInterval(function () {
+    if (!wheel)
+        return;
     wheel.image = images[currentImage];
     currentImage++;
     if (currentImage == images.length) {
         currentImage = 0;
     }
 }, 1000);
-$("#join").click(function () {
+$("#join").on('click', function () {
     var _a;
     $("#joinDiv").hide();
     $("#wheel").show();
@@ -232,7 +242,7 @@ $("#msgText").on("keyup", function (e) {
         $("#msg").click();
     }
 });
-$("#msg").click(function () {
+$("#msg").on('click', function () {
     var _a;
     let message = (_a = $("#msgText").val()) === null || _a === void 0 ? void 0 : _a.toString();
     if (!message)
@@ -251,7 +261,7 @@ $("#name").on("keyup", function (e) {
         $("#join").click();
     }
 });
-$("#start-btn").click(function () {
+$("#start-btn").on('click', function () {
     post({
         action: "start",
         name: me.name
@@ -261,28 +271,28 @@ $("#start-btn").click(function () {
         }
     });
 });
-$("#bank").click(function () {
+$("#bank").on('click', function () {
     play("bank");
 });
-$("#higher").click(function () {
+$("#higher").on('click', function () {
     play("higher");
 });
-$("#lower").click(function () {
+$("#lower").on('click', function () {
     play("lower");
 });
-$("#freeSpin").click(function () {
+$("#freeSpin").on('click', function () {
     play("freeSpin");
 });
-$("#chatSwitch").click(function () {
+$("#chatSwitch").on('click', function () {
     openPanel("#chatDiv");
 });
-$("#rankingsSwitch").click(function () {
+$("#rankingsSwitch").on('click', function () {
     openPanel("#rankingsDiv");
 });
-$("#settingsSwitch").click(function () {
+$("#settingsSwitch").on('click', function () {
     openPanel("#settingsDiv");
 });
-$("#friendsSwitch").click(function () {
+$("#friendsSwitch").on('click', function () {
     openFriendsPanel();
 });
 function openPanel(id) {
@@ -293,6 +303,18 @@ function openPanel(id) {
     for (let i = 0; i < divs.length; i++) {
         if (divs[i] !== id)
             $(divs[i]).fadeOut(100);
+    }
+    if (data.me.blockedUsers.length > 0) {
+        $("#blockedSettings").show();
+        let blockedUsers = "<br>";
+        for (let i = 0; i < data.me.blockedUsers.length; i++) {
+            blockedUsers += `<span>${data.me.blockedUsers[i]}</span><br>`;
+        }
+        blockedUsers += "<br>";
+        $("#blockedUsersList").html(blockedUsers);
+    }
+    else {
+        $("#blockedSettings").hide();
     }
     $(id).fadeIn(100);
 }
@@ -347,8 +369,10 @@ function reloadData(firstTime = false) {
                         known.nextSpin = data.game.spinNumber++;
                         let spunNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].filter(a => !data.game.numbersLeft.includes(a));
                         setTimeout(function () {
+                            if (!wheel)
+                                return;
                             for (let i = 0; i < spunNumbers.length; i++) {
-                                let index = wheel.items.findIndex((a) => a.label == spunNumbers[i]);
+                                let index = wheel.items.findIndex((a) => a.label == spunNumbers[i].toString());
                                 wheel.items.splice(index, 1);
                             }
                             wheel.items[0].labelColor = "black";
@@ -454,8 +478,11 @@ function reloadData(firstTime = false) {
                     }, 3000);
                 }
                 known.round = data.game.round;
-                wheel.remove();
-                wheel = null;
+                if (wheel) {
+                    wheel.remove();
+                    wheel = null;
+                }
+                ;
                 makeWheel();
             }
             if (data.game.started && known.nextSpin == data.game.spinNumber) {
@@ -518,7 +545,7 @@ backgroundMusic.addEventListener('ended', function () {
     this.play();
 }, false);
 backgroundMusic.volume = 0.1;
-$("html").click(function () {
+$("html").on('click', function () {
     backgroundMusic.play();
 });
 $("#newRound").hide();
@@ -582,7 +609,7 @@ if ('serviceWorker' in navigator) {
 function createEventsFriendMenuButtons() {
     $("#friendsDiv").removeAttr("inert");
     $("#addFriend").off('click');
-    $("#addFriend").click(function () {
+    $("#addFriend").on('click', function () {
         const friendName = prompt("Please enter the username of the user you would like to friend.");
         if (!friendName)
             return;
@@ -596,11 +623,10 @@ function createEventsFriendMenuButtons() {
         });
     });
     $(".dm-friend").off('click');
-    $(".dm-friend").click(function () {
+    $(".dm-friend").on('click', function () {
         const friend = $(this).parent().parent().data("username");
         if (!friend)
             return;
-        console.log(friend);
         openDmFriendPanel(friend);
         dmInterval = setInterval(() => {
             const friend = $(this).parent().parent().data("username");
@@ -611,7 +637,7 @@ function createEventsFriendMenuButtons() {
         }, 1000);
     });
     $(".remove-friend").off('click');
-    $(".remove-friend").click(function () {
+    $(".remove-friend").on('click', function () {
         const friend = $(this).parent().parent().data("username");
         if (!friend)
             return;
@@ -619,7 +645,7 @@ function createEventsFriendMenuButtons() {
         post({ action: "handleFriend", username: friend, accept: false }).then((res) => { openFriendsPanel(); });
     });
     $(".invite-friend").off('click');
-    $(".invite-friend").click(function () {
+    $(".invite-friend").on('click', function () {
         const friend = $(this).parent().parent().data("username");
         if (!friend)
             return;
@@ -627,10 +653,10 @@ function createEventsFriendMenuButtons() {
         post({ action: "inviteFriend", username: friend }).then((res) => { openFriendsPanel(); });
     });
     $("#viewRequests").off('click');
-    $("#viewRequests").click(function () {
+    $("#viewRequests").on('click', function () {
         $("#requestsDiv").html(`					
                         <h1>Friend Requests</h1>
-                        <h3>Dening requests will <span class="underline">reversibly</span> block users.</h3>
+                        <h3>Dening requests will block users. Unblock in settings.</h3>
                 `);
         for (let i = 0; i < data.me.friendRequests.length; i++) {
             $("#requestsDiv").append(`
@@ -645,18 +671,17 @@ function createEventsFriendMenuButtons() {
         }
         openPanel("#requestsDiv");
         $(".deny-friend-request").off('click');
-        $(".deny-friend-request").click(function () {
+        $(".deny-friend-request").on('click', function () {
             const friend = $(this).parent().parent().data("username");
             if (!friend)
                 return;
             post({ action: "handleFriend", username: friend, accept: false }).then((res) => { openFriendsPanel(); });
         });
         $(".accept-friend-request").off('click');
-        $(".accept-friend-request").click(function () {
+        $(".accept-friend-request").on('click', function () {
             const friend = $(this).parent().parent().data("username");
             if (!friend)
                 return;
-            console.log(friend);
             post({ action: "handleFriend", username: friend, accept: true }).then((res) => { openFriendsPanel(); });
         });
     });
@@ -676,9 +701,6 @@ function markDmsRead(friend) {
             unreadMessageReverseIndices.push(allMessages.length - i);
         }
     }
-    console.log(friend);
-    console.log(allMessages);
-    console.log(unreadMessageReverseIndices);
     if (unreadMessageReverseIndices.length > 0) {
         post({ action: "readMessages", friend: friend, messageReverseIndices: unreadMessageReverseIndices });
     }
@@ -693,9 +715,9 @@ function openFriendsPanel() {
                         <div class="friend" data-username="${data.me.friends[i]}">
                                 <span class="name">${data.me.friends[i]}</span>
                                 <div class="options">
-                                        <i class="bi bi-chat-left-dots-fill dm-friend" title="Open DM"></i>
-                                        <i class="bi bi-trash-fill remove-friend" title="Remove"></i>
-                                        <i class="bi bi-send-plus-fill invite-friend" title="Invite to play"></i>
+                                        <i class="bi bi-chat-left-dots-fill dm-friend friend-button" title="Open DM"></i>
+                                        <i class="bi bi-trash-fill remove-friend friend-button" title="Remove"></i>
+                                        <i class="bi bi-send-plus-fill invite-friend friend-button" title="Invite to play"></i>
                                 </div>
                         </div>
                 `);
@@ -703,7 +725,7 @@ function openFriendsPanel() {
     openPanel("#friendsDiv");
     createEventsFriendMenuButtons();
 }
-$("#dmMsg").click(function () {
+$("#dmMsg").on('click', function () {
     var _a;
     const message = (_a = $("#dmMsgText").val()) === null || _a === void 0 ? void 0 : _a.toString();
     if (!message)
@@ -734,15 +756,15 @@ function openDmFriendPanel(friend, reload = false) {
         openPanel("#dmDiv");
     }
 }
-$("#allPushToggle").click(function () {
+$("#allPushToggle").on('click', function () {
     const toggle = this;
     post({ action: "silentToggle", mode: toggle.checked });
 });
-$("#acceptRequestsBox").click(function () {
+$("#acceptRequestsBox").on('click', function () {
     const toggle = this;
     post({ action: "acceptRequestsToggle", mode: toggle.checked });
 });
-$("#toggleMusic").click(function () {
+$("#toggleMusic").on('click', function () {
     const toggle = this;
     if (!toggle.checked) {
         backgroundMusic.volume = 0;
@@ -750,4 +772,20 @@ $("#toggleMusic").click(function () {
     else {
         backgroundMusic.volume = 0.1;
     }
+});
+$("#unblockUser").on('click', function () {
+    const user = prompt("Please enter the username of the user to unblock.");
+    if (!user || !data.me.blockedUsers.includes(user)) {
+        alert("User not found.");
+        return;
+    }
+    ;
+    post({ action: "unblock", username: user }).then((res) => {
+        if (res !== "OK") {
+            alert(res);
+        }
+        else {
+            alert("Unblocked user.");
+        }
+    });
 });

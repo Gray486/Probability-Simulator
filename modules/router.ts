@@ -105,14 +105,20 @@ app.post('/post', (req: Request, res: Response) => {
 
                 if (body.action == "silentToggle" && userIndex !== undefined && (body.mode == false || body.mode == true)) {
                         setSilentMode(userIndex, body.mode)
+                        res.send({ res: "OK" });
+                        return;
                 }
 
                 if (body.action == "acceptRequestsToggle" && userIndex !== undefined && (body.mode == false || body.mode == true)) {
                         setFriendRequestMode(userIndex, body.mode)
+                        res.send({ res: "OK" });
+                        return;
                 }
 
                 if (body.action == "unblock" && userIndex !== undefined && body.username) {
                         unblockUser(userIndex, body.username)
+                        res.send({ res: "OK" });
+                        return;
                 }
 
                 if (body.action == "addFriend" && body.username && userIndex !== undefined) {
@@ -131,6 +137,7 @@ app.post('/post', (req: Request, res: Response) => {
 
                 if (body.action == "readMessages" && body.friend && body.messageReverseIndices) {
                         readMessages(user, body.friend, body.messageReverseIndices)
+                        res.send({ res: "OK" });
                         return;
                 }
 

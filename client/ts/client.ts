@@ -1,3 +1,4 @@
+import { ItemProps, Wheel, WheelProps } from "spin-wheel";
 import { DirectMessageChannel, Message, Move, Player, PostObject, Ranking, SendData } from "../../types";
 import { KnownInformation, PlayerInformation, SettingsPanels } from "./types";
 
@@ -53,7 +54,7 @@ async function get(): Promise<SendData | undefined> {
         }
 }
 
-const props = {
+const props: WheelProps = {
         items: [
                 {
                         label: '1',
@@ -116,12 +117,14 @@ overlays[13].src = "https://i.ibb.co/BV2DvGf/Overlay-13.png";
 
 const container: Element | null = document.querySelector('#wheel');
 
-let wheel: any;
+let wheel: Wheel | null;
 makeWheel()
 
 function makeWheel() {
         //@ts-ignore
         wheel = new spinWheel.Wheel(container, props);
+
+        if (!wheel) return;
 
         for (let i: number = 0; i < 12; i++) {
                 wheel.itemBackgroundColors[i] = "#863dd9"
@@ -146,7 +149,9 @@ function numberChosen(number: number) {
                 $("#timer").hide()
         }
 
-        let index: number = wheel.items.findIndex((a: any) => a.label == number)
+        if (!wheel) return;
+
+        let index: number = wheel.items.findIndex((a: ItemProps) => a.label == number.toString())
 
         if (index == -1) {
                 console.error("Number not found on wheel")
@@ -156,14 +161,18 @@ function numberChosen(number: number) {
         wheel.spinToItem(index, 7000, false, 2, 1, (x: number) => -Math.pow(Math.min(1, Math.max(0, -x + 1)), 3) + 1)
 
         setTimeout(function () {
-                wheel.items.splice([index], 1)
+                if (!wheel) return;
+
+                wheel.items.splice(index, 1)
                 wheel.items[0].labelColor = "black"
 
-                wheel.items.forEach((item: any) => {
-                        if (item.label > number) {
-                                item.backgroundColor = "#d9d93d"
-                        } else {
-                                item.backgroundColor = "#863dd9"
+                wheel.items.forEach((item: ItemProps) => {
+                        if (item.label) {
+                                if (parseInt(item.label) > number) {
+                                        item.backgroundColor = "#d9d93d"
+                                } else {
+                                        item.backgroundColor = "#863dd9"
+                                }
                         }
                 })
 
@@ -209,6 +218,7 @@ images[8].src = "https://i.ibb.co/Qbjdyx9/Lights.png";
 let currentImage: number = 0;
 
 setInterval(function () {
+        if (!wheel) return;
         wheel.image = images[currentImage]
         currentImage++
         if (currentImage == images.length) {
@@ -216,7 +226,7 @@ setInterval(function () {
         }
 }, 1000)
 
-$("#join").click(function () {
+$("#join").on('click', function () {
         $("#joinDiv").hide()
         $("#wheel").show()
 
@@ -253,7 +263,7 @@ $("#msgText").on("keyup", function (e) {
         }
 })
 
-$("#msg").click(function () {
+$("#msg").on('click', function () {
 
         let message: string | undefined = $("#msgText").val()?.toString();
 
@@ -274,7 +284,7 @@ $("#name").on("keyup", function (e) {
         }
 })
 
-$("#start-btn").click(function () {
+$("#start-btn").on('click', function () {
         post({
                 action: "start",
                 name: me.name
@@ -285,35 +295,35 @@ $("#start-btn").click(function () {
         })
 })
 
-$("#bank").click(function () {
+$("#bank").on('click', function () {
         play("bank")
 })
 
-$("#higher").click(function () {
+$("#higher").on('click', function () {
         play("higher")
 })
 
-$("#lower").click(function () {
+$("#lower").on('click', function () {
         play("lower")
 })
 
-$("#freeSpin").click(function () {
+$("#freeSpin").on('click', function () {
         play("freeSpin")
 })
 
-$("#chatSwitch").click(function () {
+$("#chatSwitch").on('click', function () {
         openPanel("#chatDiv")
 })
 
-$("#rankingsSwitch").click(function () {
+$("#rankingsSwitch").on('click', function () {
         openPanel("#rankingsDiv")
 })
 
-$("#settingsSwitch").click(function () {
+$("#settingsSwitch").on('click', function () {
         openPanel("#settingsDiv")
 })
 
-$("#friendsSwitch").click(function () {
+$("#friendsSwitch").on('click', function () {
         openFriendsPanel()
 })
 
@@ -324,6 +334,23 @@ function openPanel(id: SettingsPanels) {
 
         for (let i: number = 0; i < divs.length; i++) {
                 if (divs[i] !== id) $(divs[i]).fadeOut(100)
+        }
+
+        if (data.me.blockedUsers.length > 0) {
+                $("#blockedSettings").show()
+
+                let blockedUsers: string = "<br>";
+
+                for (let i: number = 0; i < data.me.blockedUsers.length; i++) {
+                        blockedUsers += `<span>${data.me.blockedUsers[i]}</span><br>`
+                }
+
+                blockedUsers += "<br>"
+
+                $("#blockedUsersList").html(blockedUsers)
+
+        } else {
+                $("#blockedSettings").hide()
         }
 
         $(id).fadeIn(100)
@@ -386,8 +413,10 @@ function reloadData(firstTime: boolean = false) {
                                         let spunNumbers: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].filter(a => !data.game.numbersLeft.includes(a))
 
                                         setTimeout(function () {
+                                                if (!wheel) return;
+
                                                 for (let i: number = 0; i < spunNumbers.length; i++) {
-                                                        let index: number = wheel.items.findIndex((a: any) => a.label == spunNumbers[i])
+                                                        let index: number = wheel.items.findIndex((a: ItemProps) => a.label == spunNumbers[i].toString())
                                                         wheel.items.splice(index, 1)
                                                 }
 
@@ -510,8 +539,12 @@ function reloadData(firstTime: boolean = false) {
                         }
 
                         known.round = data.game.round;
-                        wheel.remove()
-                        wheel = null;
+                        
+                        if (wheel) {
+                                wheel.remove()
+                                wheel = null;
+                        };
+
                         makeWheel()
                 }
 
@@ -583,7 +616,7 @@ backgroundMusic.addEventListener('ended', function () {
 
 backgroundMusic.volume = 0.1;
 
-$("html").click(function () {
+$("html").on('click', function () {
         backgroundMusic.play()
 })
 
@@ -659,7 +692,7 @@ function createEventsFriendMenuButtons() {
         $("#friendsDiv").removeAttr("inert")
 
         $("#addFriend").off('click');
-        $("#addFriend").click(function () {
+        $("#addFriend").on('click', function () {
                 const friendName: string | null = prompt("Please enter the username of the user you would like to friend.")
                 if (!friendName) return;
 
@@ -673,12 +706,10 @@ function createEventsFriendMenuButtons() {
         })
 
         $(".dm-friend").off('click');
-        $(".dm-friend").click(function () {
+        $(".dm-friend").on('click', function () {
                 const friend: string | undefined = $(this).parent().parent().data("username")
 
                 if (!friend) return;
-
-                console.log(friend)
 
                 openDmFriendPanel(friend)
 
@@ -691,7 +722,7 @@ function createEventsFriendMenuButtons() {
         })
 
         $(".remove-friend").off('click');
-        $(".remove-friend").click(function () {
+        $(".remove-friend").on('click', function () {
                 const friend: string | undefined = $(this).parent().parent().data("username")
                 if (!friend) return;
                 $("#friendsDiv").attr("inert", "")
@@ -699,7 +730,7 @@ function createEventsFriendMenuButtons() {
         })
 
         $(".invite-friend").off('click');
-        $(".invite-friend").click(function () {
+        $(".invite-friend").on('click', function () {
                 const friend: string | undefined = $(this).parent().parent().data("username")
                 if (!friend) return;
                 $("#friendsDiv").attr("inert", "")
@@ -707,10 +738,10 @@ function createEventsFriendMenuButtons() {
         })
 
         $("#viewRequests").off('click');
-        $("#viewRequests").click(function () {
+        $("#viewRequests").on('click', function () {
                 $("#requestsDiv").html(`					
                         <h1>Friend Requests</h1>
-                        <h3>Dening requests will <span class="underline">reversibly</span> block users.</h3>
+                        <h3>Dening requests will block users. Unblock in settings.</h3>
                 `)
 
                 for (let i: number = 0; i < data.me.friendRequests.length; i++) {
@@ -728,18 +759,25 @@ function createEventsFriendMenuButtons() {
                 openPanel("#requestsDiv")
 
                 $(".deny-friend-request").off('click');
-                $(".deny-friend-request").click(function () {
+                $(".deny-friend-request").on('click', function () {
                         const friend: string | undefined = $(this).parent().parent().data("username")
                         if (!friend) return;
-                        post({ action: "handleFriend", username: friend, accept: false }).then((res) => { openFriendsPanel() })
+                        post({ action: "handleFriend", username: friend, accept: false }).then((res) => { 
+                                setTimeout(() => {
+                                        openFriendsPanel() 
+                                }, 750)
+                        })
                 })
 
                 $(".accept-friend-request").off('click');
-                $(".accept-friend-request").click(function () {
+                $(".accept-friend-request").on('click', function () {
                         const friend: string | undefined = $(this).parent().parent().data("username")
                         if (!friend) return;
-                        console.log(friend)
-                        post({ action: "handleFriend", username: friend, accept: true }).then((res) => { openFriendsPanel() })
+                        post({ action: "handleFriend", username: friend, accept: true }).then((res) => { 
+                                setTimeout(() => {
+                                        openFriendsPanel() 
+                                }, 750)
+                        })
                 })
         })
 
@@ -763,10 +801,6 @@ function markDmsRead(friend: string) {
                 }  
         }
         
-        console.log(friend)
-        console.log(allMessages)
-        console.log(unreadMessageReverseIndices)
-
         if (unreadMessageReverseIndices.length > 0) {
                 post({ action: "readMessages", friend: friend, messageReverseIndices: unreadMessageReverseIndices })
         }
@@ -783,9 +817,9 @@ function openFriendsPanel() {
                         <div class="friend" data-username="${data.me.friends[i]}">
                                 <span class="name">${data.me.friends[i]}</span>
                                 <div class="options">
-                                        <i class="bi bi-chat-left-dots-fill dm-friend" title="Open DM"></i>
-                                        <i class="bi bi-trash-fill remove-friend" title="Remove"></i>
-                                        <i class="bi bi-send-plus-fill invite-friend" title="Invite to play"></i>
+                                        <i class="bi bi-chat-left-dots-fill dm-friend friend-button" title="Open DM"></i>
+                                        <i class="bi bi-trash-fill remove-friend friend-button" title="Remove"></i>
+                                        <i class="bi bi-send-plus-fill invite-friend friend-button" title="Invite to play"></i>
                                 </div>
                         </div>
                 `)
@@ -796,7 +830,7 @@ function openFriendsPanel() {
         createEventsFriendMenuButtons()
 }
 
-$("#dmMsg").click(function () {
+$("#dmMsg").on('click', function () {
         const message: string | undefined = $("#dmMsgText").val()?.toString();
         if (!message) return;
 
@@ -833,21 +867,40 @@ function openDmFriendPanel(friend: string, reload: boolean = false) {
         }
 }
 
-$("#allPushToggle").click(function () {
+$("#allPushToggle").on('click', function () {
         const toggle = this as HTMLInputElement;
         post({ action: "silentToggle", mode: toggle.checked })
 })
 
-$("#acceptRequestsBox").click(function () {
+$("#acceptRequestsBox").on('click', function () {
         const toggle = this as HTMLInputElement;
         post({ action: "acceptRequestsToggle", mode: toggle.checked })
 })
 
-$("#toggleMusic").click(function () {
+$("#toggleMusic").on('click', function () {
         const toggle = this as HTMLInputElement;
         if (!toggle.checked) {
                 backgroundMusic.volume = 0;
         } else {
                 backgroundMusic.volume = 0.1;
         }
+})
+
+$("#unblockUser").on('click', function () {
+        const user: string | null = prompt("Please enter the username of the user to unblock.")
+        if (!user || !data.me.blockedUsers.includes(user)) {
+                alert("User not found.")
+                return;
+        };
+
+        post({action: "unblock", username: user}).then((res) => {
+                if (res !== "OK") {
+                        alert(res)
+                } else {
+                        alert("Unblocked user.")
+                        setTimeout(() => {
+                                openPanel("#settingsDiv")
+                        }, 750)
+                }
+        })
 })

@@ -396,9 +396,11 @@ export function readMessages(user: User, friendUsername: string, messageReverseI
                 if (dmIndex == -1) return;
 
                 for (let i = 0; i < messageReverseIndices.length; i++) {
-                        console.log(directMessageChannels.length - messageReverseIndices[i])
-                        if (directMessageChannels.length - messageReverseIndices[i] < 0) continue;
-                        directMessageChannels[dmIndex].messages[directMessageChannels.length - messageReverseIndices[i]].read = true;
+                        const messagesLenth: number = directMessageChannels[dmIndex].messages.length;
+                        const messageIndex: number = messagesLenth - messageReverseIndices[i];
+
+                        if (messageIndex < 0) continue;
+                        directMessageChannels[dmIndex].messages[messageIndex].read = true;
                 }
 
                 setDirectMessageChannels(directMessageChannels)

@@ -5,7 +5,7 @@ import { openWebServer } from "./modules/router";
 let port: number = 8000;
 
 // Version number that shows up on settings page
-export const version = "2.0"
+export const version = "2.1"
 
 // You can specify port on project run
 // EX: node index.js port 9999

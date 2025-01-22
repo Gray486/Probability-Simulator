@@ -104,6 +104,10 @@ body {
     position: absolute;
 }
 
+.switch:hover {
+    cursor: pointer;
+}
+
 #rankingsDiv {
     background-color: #418cd8;
 }
@@ -451,4 +455,53 @@ body {
 
 #dmText {
     color: black !important;
+}
+
+#unblockUser {
+    position: relative;
+    width: 80%;
+    height: 30px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 0px;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+button:hover {
+    cursor: pointer;
+}
+
+#blockedUsersListHeading {
+    position: relative;
+    margin-top: 20px;
+}
+
+#blockedUsersList {
+    max-height: 20%;
+    width: calc(80% - 2px);
+    left: 10%;
+    margin-top: -10px;
+    position: relative;
+    background-color: rgb(205, 205, 205);
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    border-bottom-width: 0px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-color: black;
+    border-style: solid;
+    overflow: auto;
+}
+
+.friend-button:hover {
+    cursor: pointer;
+}
+
+html {
+    user-select: none;
 }
