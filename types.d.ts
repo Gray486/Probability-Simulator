@@ -151,9 +151,7 @@ export type Ranking = {
         wins: number;
 }
 
-/**
- * Return value for joinGame function.
- */
+/** Return value for joinGame function. */
 export type JoinGameRes = {
         status: "error";
         msg: string;
@@ -162,6 +160,7 @@ export type JoinGameRes = {
         key: string;
 }
 
+/** A key value pair of users to the last time they send a request. */
 export type LastOnline = {
         [key: string]: number;
 }

@@ -675,14 +675,22 @@ function createEventsFriendMenuButtons() {
             const friend = $(this).parent().parent().data("username");
             if (!friend)
                 return;
-            post({ action: "handleFriend", username: friend, accept: false }).then((res) => { openFriendsPanel(); });
+            post({ action: "handleFriend", username: friend, accept: false }).then((res) => {
+                setTimeout(() => {
+                    openFriendsPanel();
+                }, 750);
+            });
         });
         $(".accept-friend-request").off('click');
         $(".accept-friend-request").on('click', function () {
             const friend = $(this).parent().parent().data("username");
             if (!friend)
                 return;
-            post({ action: "handleFriend", username: friend, accept: true }).then((res) => { openFriendsPanel(); });
+            post({ action: "handleFriend", username: friend, accept: true }).then((res) => {
+                setTimeout(() => {
+                    openFriendsPanel();
+                }, 750);
+            });
         });
     });
 }
@@ -711,10 +719,13 @@ function openFriendsPanel() {
                 <button class="friendButton" id="viewRequests">View requests</button>
         `);
     for (let i = 0; i < data.me.friends.length; i++) {
+        const dmChannel = data.me.directMessageChannels.find((a) => a.initiatedBy == data.me.friends[i] || a.receiver == data.me.friends[i]);
+        const numberOfUnread = dmChannel === null || dmChannel === void 0 ? void 0 : dmChannel.messages.filter((m) => m.from == data.me.friends[i] || !m.read).length;
         $("#friendsDiv").append(`
                         <div class="friend" data-username="${data.me.friends[i]}">
                                 <span class="name">${data.me.friends[i]}</span>
                                 <div class="options">
+                                        ${numberOfUnread && numberOfUnread > 0 ? '<div class="notifications"></div>' : ""}
                                         <i class="bi bi-chat-left-dots-fill dm-friend friend-button" title="Open DM"></i>
                                         <i class="bi bi-trash-fill remove-friend friend-button" title="Remove"></i>
                                         <i class="bi bi-send-plus-fill invite-friend friend-button" title="Invite to play"></i>
@@ -786,6 +797,9 @@ $("#unblockUser").on('click', function () {
         }
         else {
             alert("Unblocked user.");
+            setTimeout(() => {
+                openPanel("#settingsDiv");
+            }, 750);
         }
     });
 });

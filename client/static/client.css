@@ -505,3 +505,13 @@ button:hover {
 html {
     user-select: none;
 }
+
+.notifications {
+    background-color: red;
+    border-radius: calc(12px / 2);
+    width: 12px;
+    height: 12px;
+    position: relative;
+    left: 24px;
+    top: 8px;
+}

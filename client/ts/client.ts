@@ -813,10 +813,14 @@ function openFriendsPanel() {
         `)
 
         for (let i: number = 0; i < data.me.friends.length; i++) {
+                const dmChannel: DirectMessageChannel | undefined = data.me.directMessageChannels.find((a) => a.initiatedBy == data.me.friends[i] || a.receiver == data.me.friends[i])
+                const numberOfUnread: number | undefined = dmChannel?.messages.filter((m) => m.from == data.me.friends[i] || !m.read).length
+
                 $("#friendsDiv").append(`
                         <div class="friend" data-username="${data.me.friends[i]}">
                                 <span class="name">${data.me.friends[i]}</span>
                                 <div class="options">
+                                        ${numberOfUnread && numberOfUnread > 0 ? '<div class="notifications"></div>' : ""}
                                         <i class="bi bi-chat-left-dots-fill dm-friend friend-button" title="Open DM"></i>
                                         <i class="bi bi-trash-fill remove-friend friend-button" title="Remove"></i>
                                         <i class="bi bi-send-plus-fill invite-friend friend-button" title="Invite to play"></i>
