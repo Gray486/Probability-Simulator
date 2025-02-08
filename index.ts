@@ -1,3 +1,4 @@
+import syncDatabase from "./modules/database/syncDatabase";
 import { setRankings } from "./modules/game";
 import { openWebServer } from "./modules/router";
 
@@ -5,7 +6,7 @@ import { openWebServer } from "./modules/router";
 let port: number = 8000;
 
 // Version number that shows up on settings page
-export const version = "2.1"
+export const version = "2.2"
 
 // You can specify port on project run
 // EX: node index.js port 9999
@@ -13,7 +14,11 @@ if (process.argv.indexOf("port") > -1) {
     port = parseInt(process.argv[process.argv.indexOf("port") + 1])
 }
 
-openWebServer(port)
+(async () => {
+    await syncDatabase()
 
-// Set rankings on server startup
-setRankings()
+    // Set rankings on server startup
+    setRankings()
+
+    openWebServer(port)
+})()

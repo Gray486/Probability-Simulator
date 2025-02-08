@@ -1,11 +1,17 @@
 import * as jwt from "jsonwebtoken";
 import * as googleAuth from "google-auth-library";
-import { DirectMessageChannel, Message, User, UserLoginRes } from "../types";
-import { Request, Response } from 'express';
-import { addUser, getDirectMessageChannels, getUserDBAsync, KEYS, setDirectMessageChannels, setUserDB } from "./files";
-import { lastOnline, sendPushNotification } from "./push";
+import { Message, UserLoginRes } from "../types";
+import { NextFunction, Request, RequestHandler, Response } from 'express';
+import { directMessageChannels, KEYS } from "./files";
+import { lastOnline } from "./push";
+import UserModel from "./database/UserModel";
 
 const { JWT_SECRET, G_CLIENT_ID } = KEYS;
+
+export interface AuthenticatedRequest extends Request {
+        user?: UserModel;
+        key?: string;
+}
 
 /**
  * Put inside of route to make it protected.
@@ -13,7 +19,7 @@ const { JWT_SECRET, G_CLIENT_ID } = KEYS;
  * @param res Express response.
  * @param next The route to call after authentication.
  */
-export function authenticate(req: Request, res: Response, next: (user: User, userIndex?: number, key?: string) => void): void {
+export async function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
         // Makes sure token cookie exists
         if (!req.cookies.token) {
                 res.status(401).sendFile("401.html", { 'root': __dirname + "/../client/static" })
@@ -21,34 +27,39 @@ export function authenticate(req: Request, res: Response, next: (user: User, use
         }
 
         // Finds user game key
-        const key: string = req.cookies.key || null;
+        const key: string = req.cookies.key;
 
         // Decodes payload from cookie
-        const payload = jwt.verify(req.cookies.token, JWT_SECRET)
+        let payload: string | jwt.JwtPayload | null = null;
+        try {
+                payload = jwt.verify(req.cookies.token, JWT_SECRET)
+        } catch (err) {
+                console.error(err)
+        }
         let id: string;
 
         // Makes sure payload is an object
-        if (typeof payload == "string") {
+        if (typeof payload == "string" || !payload) {
                 res.status(401).sendFile("401.html", { 'root': __dirname + "/../client/static" })
                 return;
         } else {
                 id = payload.id;
         }
 
-        getUserDBAsync((accounts) => {
-                // Finds user
-                const userIndex: number = accounts.findIndex((value: User) => value.id == id)
+        // Finds user
+        const user = await UserModel.getUser(id, "id");
 
-                if (userIndex == -1) {
-                        res.status(401).sendFile("401.html", { 'root': __dirname + "/../client/static" })
-                        return;
-                }
+        if (!user) {
+                res.status(401).sendFile("401.html", { 'root': __dirname + "/../client/static" })
+                return;
+        }
 
-                lastOnline[accounts[userIndex].username] = new Date().getTime();
+        lastOnline[user.username] = new Date().getTime();
 
-                // Continues on to the actual route, giving it the user and their game key
-                next(accounts[userIndex], userIndex, key)
-        })
+        // Continues on to the actual route, giving it the user and their game key
+        req.user = user;
+        req.key = key;
+        next()
 }
 
 /** 
@@ -91,46 +102,30 @@ export async function handleUser(csrfTokenCookie: string | undefined, csrfTokenB
                 return { success: false, status: 500, message: "Could not get google payload. <a href='./'>Click here</a> to login again." };
         }
 
-        getUserDBAsync((users) => {
-                const userIndex: number = users.findIndex((value: User) => value.id == userData.sub);
+        const user: UserModel | null = await UserModel.findOne({where: { id: userData.sub }});
 
-                if (userIndex == -1) {
-                        let defaultUsername: string;
+        if (!user) {
+                let defaultUsername: string;
 
-                        // Creates username based on real name, but defaults to "User"
-                        if (userData.family_name && userData.given_name) {
-                                defaultUsername = userData.given_name + userData.family_name.charAt(0);
-                        } else {
-                                defaultUsername = "User"
-                        }
-
-                        let uniqueUsername: string = defaultUsername;
-
-                        // Adds 1 to username until it is unique
-                        let uniqueUsernameIndex: number = 1;
-                        while (users.findIndex((value: User) => value.username == uniqueUsername) > -1) {
-                                uniqueUsername = defaultUsername + uniqueUsernameIndex.toString();
-                                uniqueUsernameIndex++
-                        }
-
-                        // Creates new user account
-                        const newAccount: User = {
-                                username: uniqueUsername,
-                                realName: userData.name || uniqueUsername,
-                                id: userData.sub,
-                                friends: [],
-                                friendRequests: [],
-                                blockedUsers: [],
-                                score: 0,
-                                wins: 0,
-                                silent: false,
-                                lastInvite: null,
-                                acceptingFriendRequests: true
-                        }
-
-                        addUser(newAccount)
+                // Creates username based on real name, but defaults to `User`.
+                if (userData.family_name && userData.given_name) {
+                        defaultUsername = userData.given_name + userData.family_name.charAt(0);
+                } else {
+                        defaultUsername = "User"
                 }
-        })
+
+                let uniqueUsername: string = defaultUsername;
+
+                // Adds 1 to username until it is unique
+                let uniqueUsernameIndex: number = 1;
+                while (await UserModel.findOne({where: {username: uniqueUsername}}) != null) {
+                        uniqueUsername = defaultUsername + uniqueUsernameIndex.toString();
+                        uniqueUsernameIndex++
+                }
+
+                // Creates new user account
+                UserModel.createUser(userData.sub, uniqueUsername, userData.name || uniqueUsername)
+        }
 
         // Creates new login token
         const jwtToken: string = jwt.sign({ id: userData.sub }, JWT_SECRET, { expiresIn: "10h" });
@@ -140,110 +135,16 @@ export async function handleUser(csrfTokenCookie: string | undefined, csrfTokenB
 
 /** 
  * Handles a friend. Can accept and deny requests and remove friends.  
- * @param username Username of user that is handling a friend.
- * @param friendUsername Username of friend to handle.
+ * @param user The user that is handling a friend.
+ * @param friend Friend to handle.
  * @param accept Wether to accept request or deny request / remove friend.
  */
-export async function handleFriend(userIndex: number, friendUsername: string, accept: boolean): Promise<"userNotFound" | "OK" | "noFriendRequest"> {
-        // Gets userDB asyncronously by creating a promise that yeilds the userDB.
-        const userDB = await new Promise<User[]>((resolve) => {
-                getUserDBAsync((userDB) => {
-                        resolve(userDB);
-                });
-        });
-
-        const username: string = userDB[userIndex].username;
-
-        // Gets DB indexes of both users
-        const friendIndex: number = userDB.findIndex((user: User) => user.username == friendUsername)
-
-        if (friendIndex < 0 || userIndex < 0) {
-                return "userNotFound";
-        }
-
-        const userFriendIndex = userDB[userIndex].friendRequests.indexOf(friendUsername)
-
+export async function handleFriend(user: UserModel, friend: UserModel, accept: boolean): Promise<void> {
         if (accept) {
-                if (!userDB[userIndex].friendRequests.includes(friendUsername)) {
-                        return "noFriendRequest";
-                }
-                // Adds friend to friend list.
-                if (!userDB[userIndex].friends.includes(friendUsername)) {
-                        userDB[userIndex].friends.push(friendUsername)
-                }
-                // Unblocks user if not already done.
-                if (userDB[userIndex].blockedUsers.includes(friendUsername)) {
-                        userDB[userIndex].blockedUsers.splice(userDB[userIndex].blockedUsers.indexOf(friendUsername))
-                }
-                // Adds user to friend's friend list.
-                if (!userDB[friendIndex].friends.includes(username)) {
-                        userDB[friendIndex].friends.push(username)
-                }
+                user.friend(friend)
         } else {
-                // Blocks user if not already done.
-                if (!userDB[userIndex].blockedUsers.includes(friendUsername)) {
-                        userDB[userIndex].blockedUsers.push(friendUsername)
-                }
-                // Removes friend from user's friend list if applicable
-                const userFriendIndex = userDB[userIndex].friends.indexOf(friendUsername)
-                userDB[userIndex].friends.splice(userFriendIndex, userFriendIndex < 0 ? 0 : 1)
-
-                // Removes user from friend's friend list if applicable
-                const friendFriendIndex = userDB[friendIndex].friends.indexOf(username)
-                userDB[friendIndex].friends.splice(friendFriendIndex, friendFriendIndex < 0 ? 0 : 1)
+                user.unfriend(friend)
         }
-
-        userDB[userIndex].friendRequests.splice(userFriendIndex, userFriendIndex < 0 ? 0 : 1)
-
-        setUserDB(userDB);
-
-        return "OK";
-}
-
-/**
- * Sends a friend request to the specified user.  
- * @param username Username of user that is adding a friend.
- * @param friendUsername Username of friend to add.
- */
-export async function addFriend(userIndex: number, friendUsername: string): Promise<"userNotFound" | "friendNotFound" | "friendNotAcceptingRequests" | "OK"> {
-        // Gets userDB asyncronously by creating a promise that yeilds the userDB. 
-        const userDB = await new Promise<User[]>((resolve) => {
-                getUserDBAsync((userDB) => {
-                        resolve(userDB);
-                });
-        });
-
-        const username: string = userDB[userIndex].username;
-
-        // Gets DB indexes of both users
-        const friendIndex: number = userDB.findIndex((user: User) => user.username == friendUsername)
-
-        if (friendIndex < 0) {
-                return "friendNotFound";
-        }
-
-        if (userIndex < 0) {
-                return "userNotFound";
-        }
-
-        if (!userDB[friendIndex].acceptingFriendRequests) {
-                return "friendNotAcceptingRequests";
-        }
-
-        // Removes invitee from blocked list.
-        if (userDB[userIndex].blockedUsers.includes(friendUsername)) {
-                userDB[userIndex].blockedUsers.splice(userDB[userIndex].blockedUsers.indexOf(friendUsername))
-        }
-
-        if (userDB[userIndex].friendRequests.includes(friendUsername)) {
-                handleFriend(userIndex, friendUsername, true)
-        } else if (!userDB[friendIndex].friendRequests.includes(username)) {
-                userDB[friendIndex].friendRequests.push(username)
-        }
-
-        setUserDB(userDB);
-
-        return "OK";
 }
 
 /**
@@ -251,28 +152,11 @@ export async function addFriend(userIndex: number, friendUsername: string): Prom
  * @param user The user that is inviting a friend.
  * @param friendUsername The friend that is being invited.
  */
-export async function inviteFriend(user: User, friendUsername: string): Promise<"OK" | "friendNotFound" | "friendCannotBeInvited"> {
-        if (!user.friends.includes(friendUsername)) {
+export async function inviteFriend(user: UserModel, friend: UserModel | null): Promise<"OK" | "friendNotFound"> {
+        if (!friend || !user.hasFriend(friend)) {
                 return "friendNotFound";
         }
-
-        const userDB = await new Promise<User[]>((resolve) => {
-                getUserDBAsync((userDB) => {
-                        resolve(userDB);
-                })
-        });
-
-        let reciverUserIndex = userDB.findIndex((user: User) => user.username == friendUsername)
-
-        if (userDB[reciverUserIndex].lastInvite && new Date().getTime() - userDB[reciverUserIndex].lastInvite < 300000) {
-                return "friendCannotBeInvited"
-        }
-
-        userDB[reciverUserIndex].lastInvite = new Date().getTime();
-        setUserDB(userDB)
-
-        sendPushNotification(friendUsername, "Invited to Probability Simulator!", `${user.username} has invited you to play!`);
-
+        friend.notify("Invited to Probability Simulator!", `${user.username} has invited you to play!`);
         return "OK";
 }
 
@@ -282,18 +166,8 @@ export async function inviteFriend(user: User, friendUsername: string): Promise<
  * @param friendUsername The friend being messaged
  * @param content The message to send.
  */
-export async function messageFriend(user: User, friendUsername: string, content: string): Promise<"friendNotFound" | "OK"> {
-        // Gets userDB asyncronously by creating a promise that yeilds the userDB. 
-        const userDB = await new Promise<User[]>((resolve) => {
-                getUserDBAsync((userDB) => {
-                        resolve(userDB);
-                });
-        });
-
-        // Gets DB indexes of both users
-        const friendIndex: number = userDB.findIndex((user: User) => user.username == friendUsername)
-
-        if (friendIndex < 0 || !user.friends.includes(friendUsername)) {
+export async function messageFriend(user: UserModel, friend: UserModel | null, content: string): Promise<"friendNotFound" | "OK"> {
+        if (!friend || !user.hasFriend(friend)) {
                 return "friendNotFound";
         }
 
@@ -301,7 +175,7 @@ export async function messageFriend(user: User, friendUsername: string, content:
                 content = content.slice(0, 50);
         }
 
-        sendPushNotification(friendUsername, `${user.username} sent you a message.`, content)
+        friend.notify(`${user.username} sent you a message.`, content)
 
         let message: Message = {
                 from: user.username,
@@ -310,18 +184,12 @@ export async function messageFriend(user: User, friendUsername: string, content:
                 read: false
         }
 
-        const directMessageChannels = await new Promise<DirectMessageChannel[]>((resolve) => {
-                getDirectMessageChannels((directMessageChannels) => {
-                        resolve(directMessageChannels);
-                });
-        });
-
         const dmIndex = directMessageChannels.findIndex(
                 (dmChannel) => (
                         (
-                                dmChannel.initiatedBy == user.username && dmChannel.receiver == friendUsername
+                                dmChannel.initiatedBy == user.username && dmChannel.receiver == friend.username
                         ) || (
-                                dmChannel.receiver == user.username && dmChannel.initiatedBy == friendUsername
+                                dmChannel.receiver == user.username && dmChannel.initiatedBy == friend.username
                         )
                 )
         )
@@ -329,7 +197,7 @@ export async function messageFriend(user: User, friendUsername: string, content:
         if (dmIndex < 0) {
                 directMessageChannels.push({
                         initiatedBy: user.username,
-                        receiver: friendUsername,
+                        receiver: friend.username,
                         messages: [message]
                 })
         } else {
@@ -339,70 +207,25 @@ export async function messageFriend(user: User, friendUsername: string, content:
                 directMessageChannels[dmIndex].messages.push(message)
         }
 
-        setDirectMessageChannels(directMessageChannels)
-
         return "OK";
 }
 
-/**
- * Silences or unsilences users. 
- * @param userIndex The user to change the silent mode for.
- * @param silent Wether or not to silent the user.
- */
-export function setSilentMode(userIndex: number, silent: boolean): void {
-        getUserDBAsync((userDB) => {
-                userDB[userIndex].silent = silent;
-                setUserDB(userDB);
-        })
-}
+export function readMessages(user: UserModel, friendUsername: string, messageReverseIndices: number[]) {
+        const dmIndex: number = directMessageChannels.findIndex((dmChannel) => (
+                (
+                        dmChannel.initiatedBy == user.username && dmChannel.receiver == friendUsername
+                ) || (
+                        dmChannel.receiver == user.username && dmChannel.initiatedBy == friendUsername
+                )
+        ))
 
-/**
- * Allows or disallows friend requests. 
- * @param userIndex The user to change the friend request mode for.
- * @param acceptingFriendRequests Wether or not to allow friend requests.
- */
-export function setFriendRequestMode(userIndex: number, acceptingFriendRequests: boolean) {
-        getUserDBAsync((userDB) => {
-                userDB[userIndex].acceptingFriendRequests = acceptingFriendRequests;
-                setUserDB(userDB);
-        })
-}
+        if (dmIndex == -1) return;
 
-/**
- * Unblocks a user. 
- * @param userIndex The user to remove the block from.
- * @param blocked The blocked user.
- */
-export function unblockUser(userIndex: number, blocked: string) {
-        getUserDBAsync((userDB) => {
-                let blockListIndex = userDB[userIndex].blockedUsers.indexOf(blocked);
-                if (blockListIndex != -1) {
-                        userDB[userIndex].blockedUsers.splice(blockListIndex, 1)
-                        setUserDB(userDB);
-                }
-        })
-}
+        for (let i = 0; i < messageReverseIndices.length; i++) {
+                const messagesLenth: number = directMessageChannels[dmIndex].messages.length;
+                const messageIndex: number = messagesLenth - messageReverseIndices[i];
 
-export function readMessages(user: User, friendUsername: string, messageReverseIndices: number[]) {
-        getDirectMessageChannels((directMessageChannels) => {
-                const dmIndex: number = directMessageChannels.findIndex((dmChannel) => (
-                        (
-                                dmChannel.initiatedBy == user.username && dmChannel.receiver == friendUsername
-                        ) || (
-                                dmChannel.receiver == user.username && dmChannel.initiatedBy == friendUsername
-                        )
-                ))
-
-                if (dmIndex == -1) return;
-
-                for (let i = 0; i < messageReverseIndices.length; i++) {
-                        const messagesLenth: number = directMessageChannels[dmIndex].messages.length;
-                        const messageIndex: number = messagesLenth - messageReverseIndices[i];
-
-                        if (messageIndex < 0) continue;
-                        directMessageChannels[dmIndex].messages[messageIndex].read = true;
-                }
-
-                setDirectMessageChannels(directMessageChannels)
-        })
+                if (messageIndex < 0) continue;
+                directMessageChannels[dmIndex].messages[messageIndex].read = true;
+        }
 }

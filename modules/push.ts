@@ -1,9 +1,11 @@
 import * as webpush from "web-push";
-import { getSubscriberDBAsync, KEYS } from "./files";
-import { LastOnline, SubscriptionInformation } from "../types";
+import { KEYS } from "./files";
+import { LastOnline } from "../types";
+import SubscriptionModel, { SubscriptionInformation } from "./database/SubscriptionModel";
 
 const { VAPID } = KEYS;
 
+/** Key value par of usernames to when they were last online. */
 export let lastOnline: LastOnline = {};
 
 webpush.setVapidDetails(VAPID.SUBJECT, VAPID.PUBLIC_KEY, VAPID.PRIVATE_KEY);
@@ -13,24 +15,21 @@ webpush.setVapidDetails(VAPID.SUBJECT, VAPID.PUBLIC_KEY, VAPID.PRIVATE_KEY);
  * @param title Title of push notification.
  * @param body Body of push notification.
  */
-export function blastPushNotifications(title: string, body: string): void {
-        getSubscriberDBAsync(async (subscribers: SubscriptionInformation[]) => {
-                for (let i = 0; i < subscribers.length; i++) {
-                        const subscription: SubscriptionInformation = subscribers[i];
-                        const payload = {
-                                title: title,
-                                body: body,
-                                icon: "",
-                        };
+export async function blastPushNotifications(title: string, body: string): Promise<void> {
+        const subscriptionModels = (await SubscriptionModel.findAll())
+        let subscribers: SubscriptionInformation[] = subscriptionModels.map((m) => m.fullSubcription)
 
-                        const { username, ...webPushSubscription } = subscription;
+        for (let i = 0; i < subscribers.length; i++) {
+                const payload = {
+                        title: title,
+                        body: body,
+                        icon: "",
+                };
 
-                        try {
-                                await webpush.sendNotification(webPushSubscription, JSON.stringify(payload));
-                        } catch (err) { }
-                }
-        })
-
+                try {
+                        await webpush.sendNotification(subscribers[i], JSON.stringify(payload));
+                } catch (err) { }
+        }
 }
 
 /**
@@ -39,26 +38,17 @@ export function blastPushNotifications(title: string, body: string): void {
  * @param title Title of push notification.
  * @param body Body of push notification.
  */
-export function sendPushNotification(username: string, title: string, body: string): void {
-        console.log(lastOnline)
-        if (lastOnline[username] && new Date().getTime() - lastOnline[username] < 5000) return;
+export async function sendPushNotification(subscriptions: SubscriptionInformation[], title: string, body: string): Promise<void> {
+        for (let i = 0; i < subscriptions.length; i++) {
+                const subscription = subscriptions[i];
+                const payload = {
+                        title: title,
+                        body: body,
+                        icon: "",
+                };
 
-        getSubscriberDBAsync(async (subscribers: SubscriptionInformation[]) => {
-                subscribers = subscribers.filter((a) => a.username == username)
-
-                for (let i = 0; i < subscribers.length; i++) {
-                        const subscription = subscribers[i];
-                        const payload = {
-                                title: title,
-                                body: body,
-                                icon: "",
-                        };
-
-                        const { username, ...webPushSubscription } = subscription;
-
-                        try {
-                                await webpush.sendNotification(webPushSubscription, JSON.stringify(payload));
-                        } catch (err) { }
-                }
-        })
+                try {
+                        await webpush.sendNotification(subscriptions[i], JSON.stringify(payload));
+                } catch (err) { }
+        }
 }

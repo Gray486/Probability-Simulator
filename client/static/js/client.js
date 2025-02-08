@@ -431,7 +431,7 @@ function reloadData(firstTime = false) {
                     }
                 }
             }
-            if ((lastData === null || lastData === void 0 ? void 0 : lastData.chat) && data.chat && JSON.stringify(lastData.chat) !== JSON.stringify(data.chat)) {
+            if (JSON.stringify($("#chatText").html().split("\n")) != JSON.stringify(data.chat)) {
                 $("#chatText").html(data.chat.join("\n"));
             }
             $("#startCount").text(`${data.players.filter((a) => a.ready).length} / ${((_c = data.playerList) === null || _c === void 0 ? void 0 : _c.length) || 0}`);
@@ -720,7 +720,7 @@ function openFriendsPanel() {
         `);
     for (let i = 0; i < data.me.friends.length; i++) {
         const dmChannel = data.me.directMessageChannels.find((a) => a.initiatedBy == data.me.friends[i] || a.receiver == data.me.friends[i]);
-        const numberOfUnread = dmChannel === null || dmChannel === void 0 ? void 0 : dmChannel.messages.filter((m) => m.from == data.me.friends[i] || !m.read).length;
+        const numberOfUnread = dmChannel === null || dmChannel === void 0 ? void 0 : dmChannel.messages.filter((m) => m.from == data.me.friends[i] && !m.read).length;
         $("#friendsDiv").append(`
                         <div class="friend" data-username="${data.me.friends[i]}">
                                 <span class="name">${data.me.friends[i]}</span>
@@ -803,3 +803,14 @@ $("#unblockUser").on('click', function () {
         }
     });
 });
+setInterval(() => {
+    const unreadMessages = data.me.directMessageChannels.find((dm) => {
+        return dm.messages.find((m) => m.from != data.me.username && !m.read) != undefined;
+    }) != undefined;
+    if (unreadMessages) {
+        $("#friendsNotificationDot").css('color', 'red');
+    }
+    else {
+        $("#friendsNotificationDot").css('color', 'black');
+    }
+}, 2000);

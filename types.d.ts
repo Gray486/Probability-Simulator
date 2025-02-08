@@ -1,23 +1,3 @@
-export type User = {
-        /** Name on google account. */
-        realName: string;
-        /** Unique username based on realName. */
-        username: string;
-        /** "sub" on google account. */
-        id: string;
-        friends: string[];
-        /** The usernames of users that have requested to friend this user. */
-        friendRequests: string[];
-        /** The list of users that have been blocked. */
-        blockedUsers: string[];
-        score: number;
-        wins: number;
-        /** Whether user is in silent mode. */
-        silent: boolean;
-        lastInvite: number | null;
-        acceptingFriendRequests: boolean;
-}
-
 export type DirectMessageChannel = {
         /** The username of the person that initiated the DM channel. */
         initiatedBy: string;
@@ -48,16 +28,6 @@ export type ChatLog = {
         username: string;
         realName: string;
         message: string;
-}
-
-export type SubscriptionInformation = {
-        endpoint: string;
-        expirationTime?: null | number;
-        keys: {
-                p256dh: string;
-                auth: string;
-        }
-        username: string;
 }
 
 export type UserLoginRes = {

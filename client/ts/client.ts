@@ -178,7 +178,7 @@ function numberChosen(number: number) {
 
                 $("#pot").text(data.game.points)
                 wheel.overlayImage = overlays[number]
- 
+
                 if (data.players.find((a: Player) => a.gameName == me.name)?.alive) {
                         $("#controls button").prop("disabled", false)
                 }
@@ -488,7 +488,7 @@ function reloadData(firstTime: boolean = false) {
 
                 }
 
-                if (lastData?.chat && data.chat && JSON.stringify(lastData.chat) !== JSON.stringify(data.chat)) {
+                if (JSON.stringify($("#chatText").html().split("\n")) != JSON.stringify(data.chat)) {
                         $("#chatText").html(data.chat.join("\n"))
                 }
 
@@ -539,7 +539,7 @@ function reloadData(firstTime: boolean = false) {
                         }
 
                         known.round = data.game.round;
-                        
+
                         if (wheel) {
                                 wheel.remove()
                                 wheel = null;
@@ -589,7 +589,7 @@ async function makeRankings() {
                 `)
         }
 
-        for (let i: number = 0; i < byScore.length; i++) {                
+        for (let i: number = 0; i < byScore.length; i++) {
                 $("#byScore").append(`
                         <div class="ranking">
                                 <span id="name">${byScore[i].name}</span>
@@ -762,9 +762,9 @@ function createEventsFriendMenuButtons() {
                 $(".deny-friend-request").on('click', function () {
                         const friend: string | undefined = $(this).parent().parent().data("username")
                         if (!friend) return;
-                        post({ action: "handleFriend", username: friend, accept: false }).then((res) => { 
+                        post({ action: "handleFriend", username: friend, accept: false }).then((res) => {
                                 setTimeout(() => {
-                                        openFriendsPanel() 
+                                        openFriendsPanel()
                                 }, 750)
                         })
                 })
@@ -773,9 +773,9 @@ function createEventsFriendMenuButtons() {
                 $(".accept-friend-request").on('click', function () {
                         const friend: string | undefined = $(this).parent().parent().data("username")
                         if (!friend) return;
-                        post({ action: "handleFriend", username: friend, accept: true }).then((res) => { 
+                        post({ action: "handleFriend", username: friend, accept: true }).then((res) => {
                                 setTimeout(() => {
-                                        openFriendsPanel() 
+                                        openFriendsPanel()
                                 }, 750)
                         })
                 })
@@ -786,7 +786,7 @@ function createEventsFriendMenuButtons() {
 function markDmsRead(friend: string) {
         const channel: DirectMessageChannel | undefined = data.me.directMessageChannels.find((a: DirectMessageChannel) => {
                 return a.receiver == friend || a.initiatedBy == friend
-        }) 
+        })
 
         if (!channel) {
                 return;
@@ -798,9 +798,9 @@ function markDmsRead(friend: string) {
         for (let i: number = 0; i < allMessages.length; i++) {
                 if (!allMessages[i].read && allMessages[i].from == friend) {
                         unreadMessageReverseIndices.push(allMessages.length - i)
-                }  
+                }
         }
-        
+
         if (unreadMessageReverseIndices.length > 0) {
                 post({ action: "readMessages", friend: friend, messageReverseIndices: unreadMessageReverseIndices })
         }
@@ -814,7 +814,7 @@ function openFriendsPanel() {
 
         for (let i: number = 0; i < data.me.friends.length; i++) {
                 const dmChannel: DirectMessageChannel | undefined = data.me.directMessageChannels.find((a) => a.initiatedBy == data.me.friends[i] || a.receiver == data.me.friends[i])
-                const numberOfUnread: number | undefined = dmChannel?.messages.filter((m) => m.from == data.me.friends[i] || !m.read).length
+                const numberOfUnread: number | undefined = dmChannel?.messages.filter((m) => m.from == data.me.friends[i] && !m.read).length
 
                 $("#friendsDiv").append(`
                         <div class="friend" data-username="${data.me.friends[i]}">
@@ -897,7 +897,7 @@ $("#unblockUser").on('click', function () {
                 return;
         };
 
-        post({action: "unblock", username: user}).then((res) => {
+        post({ action: "unblock", username: user }).then((res) => {
                 if (res !== "OK") {
                         alert(res)
                 } else {
@@ -908,3 +908,15 @@ $("#unblockUser").on('click', function () {
                 }
         })
 })
+
+setInterval(() => {
+        const unreadMessages: boolean = data.me.directMessageChannels.find((dm) => {
+                return dm.messages.find((m) => m.from != data.me.username && !m.read) != undefined;
+        }) != undefined;
+
+        if (unreadMessages) {
+                $("#friendsNotificationDot").css('color', 'red')
+        } else {
+                $("#friendsNotificationDot").css('color', 'black')
+        }
+}, 2000)

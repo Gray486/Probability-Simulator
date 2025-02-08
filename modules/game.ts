@@ -1,6 +1,7 @@
-import { getUserDBAsync, logChatMessage, setUserDB } from "./files";
-import { Player, User, PlayerKeys, Game, Move, Ranking, GameTimers, JoinGameRes } from "../types";
+import { logChatMessage } from "./files";
+import { Player, PlayerKeys, Game, Move, Ranking, GameTimers, JoinGameRes } from "../types";
 import * as crypto from "node:crypto";
+import UserModel from "./database/UserModel";
 
 /** Game keys associated with specific players (by gameName) to validate who they are. */
 export let playerKeys: PlayerKeys = {};
@@ -33,7 +34,7 @@ let canGo: boolean = true;
 export let rankings: Ranking[];
 
 /** Adds user to game and returns game key if successful. */
-export function joinGame(gameName: string, user: User, allowedToJoin: boolean): JoinGameRes {
+export function joinGame(gameName: string, user: UserModel, allowedToJoin: boolean): JoinGameRes {
         if (!allowedToJoin) {
                 return { status: "error", msg: "Cannot join game right now." };
         }
@@ -107,7 +108,7 @@ export function voteStartGame(username: string): void {
 
 /**
  * Make a move for the specified user .
- * @returns "true" if successful and "false" if possible cheating or error has occured.
+ * @returns `true` if successful and `false` if possible cheating or error has occured.
  */
 export function makeMove(move: Move, gameName: string): boolean {
         let playerIndex = players.findIndex(a => a.gameName == gameName)
@@ -336,7 +337,7 @@ export function sendMessage(message: string, username: string | undefined, realN
  * @param username The player's / user's username.
  * @param key The specified player's game key.
  */
-export function removePlayer(username: string, key: string) {
+export async function removePlayer(username: string, key: string) {
 
         const playerIndex: number = players.findIndex((a: Player) => a.username == username);
 
@@ -349,15 +350,12 @@ export function removePlayer(username: string, key: string) {
         // Checks if player's game key is correct and player exists
         if (playerIndex > -1 && playerKeys[gameName] == key) {
 
-                // Removes 50 points if user leaves mid-game
+                // Removes 20 points if user leaves mid-game
                 if (game.started) {
-                        getUserDBAsync((userDB) => {
-                                const userIndex = userDB.findIndex((user) => user.username == username);
-                                if (userIndex != -1) {
-                                        userDB[userIndex].score -= 20;
-                                        setUserDB(userDB)
-                                }
-                        })
+                        const user = await UserModel.getUser(username);
+                        if (user) {
+                                user.update({ score: user.score - 20 })
+                        }
                 }
 
                 // Removes player
@@ -372,7 +370,7 @@ export function removePlayer(username: string, key: string) {
 }
 
 /** Triggers the end of the game. */
-function endGame(): void {
+async function endGame() {
         if (timers.play) {
                 clearTimeout(timers.play)
         }
@@ -392,29 +390,26 @@ function endGame(): void {
         // Sort players by score, needed to award points
         players.sort((a: Player, b: Player) => b.score - a.score);
 
-        getUserDBAsync((updatedUserDB) => {
+        // For every player, update their score, and add one to the winning player's win tally
+        for (let i = 0; i < players.length; i++) {
+                players[i].alive = true;
+                players[i].move = "none";
+                players[i].lastMove = "none";
+                players[i].freeSpin = true;
+                players[i].score = 0;
+                players[i].ready = false;
+                players[i].strikes = 0;
 
-                // For every player, update their score, and add one to the winning player's win tally
-                for (let i = 0; i < players.length; i++) {
-                        players[i].alive = true;
-                        players[i].move = "none";
-                        players[i].lastMove = "none";
-                        players[i].freeSpin = true;
-                        players[i].score = 0;
-                        players[i].ready = false;
-                        players[i].strikes = 0;
+                const user = await UserModel.getUser(players[i].username)
 
-                        let userIndex = updatedUserDB.findIndex((a: User) => a.username == players[i].username);
+                if (!user) return;
 
-                        if (i == 0) {
-                                updatedUserDB[userIndex].wins++;
-                        }
-
-                        updatedUserDB[userIndex].score += Math.round(20 - (40 * i) / (players.length - 1));
+                if (i == 0) {
+                        user.update({ wins: user.wins + 1 })
                 }
 
-                setUserDB(updatedUserDB);
-        });
+                user.update({ score: user.score + Math.round(20 - (40 * i) / (players.length - 1))})
+        }
 
         // If there is a player left, they won the game
         if (players.length > 0) {
@@ -424,17 +419,17 @@ function endGame(): void {
         setRankings()
 }
 
-/** Used to set the rankings after a game. */
-export function setRankings(): void {
-        getUserDBAsync((userDB) => {
-                rankings = [];
-                for (let i = 0; i < userDB.length; i++) {
-                        let user: User = userDB[i]
-                        rankings.push({
-                                name: user.username,
-                                score: user.score,
-                                wins: user.wins
-                        })
-                }
-        });
+/** Used to set the rankings after a game. Only updates the rankings when needed, as this uses alot of DB reading. */
+export async function setRankings() {
+        const userDB = await UserModel.findAll();
+
+        rankings = [];
+        for (let i = 0; i < userDB.length; i++) {
+                let user: UserModel = userDB[i]
+                rankings.push({
+                        name: user.username,
+                        score: user.score,
+                        wins: user.wins
+                })
+        }
 }

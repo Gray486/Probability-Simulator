@@ -1,11 +1,13 @@
 import * as bodyParser from "body-parser";
 const cookieParser = require("cookie-parser");
 import express, { Request, Response } from 'express';
-import { addFriend, authenticate, readMessages, handleFriend, handleUser, inviteFriend, messageFriend, setFriendRequestMode, setSilentMode, unblockUser } from "./accounts";
-import { DirectMessageChannel, GameData, JoinGameRes, PostObject, SendData, SubscriptionInformation, UserLoginRes } from "../types";
+import { authenticate, readMessages, handleFriend, handleUser, inviteFriend, messageFriend, AuthenticatedRequest } from "./accounts";
+import { GameData, JoinGameRes, PostObject, SendData, UserLoginRes } from "../types";
 import { chat, game, joinGame, makeMove, playerKeys, playerList, players, rankings, removePlayer, sendData, sendMessage, voteStartGame } from "./game";
-import { addToSubscriberDB, getDirectMessageChannels } from "./files";
 import { version } from "../index";
+import { directMessageChannels } from "./files";
+import UserModel from "./database/UserModel";
+import { SubscriptionInformation } from "./database/SubscriptionModel";
 
 const app = express();
 
@@ -30,168 +32,179 @@ app.post('/', async (req: Request, res: Response) => {
 let allowedData: SendData;
 
 // Data for client to retrieve about game
-app.get('/get', (req: Request, res: Response) => {
-        authenticate(req, res, async (user) => {
-                let data: GameData = {
-                        playerList: playerList,
-                        players: players,
-                        game: game,
-                        rankings: rankings
-                }
+app.get('/get', authenticate, (req: AuthenticatedRequest, res: Response) => {
+        let data: GameData = {
+                playerList: playerList,
+                players: players,
+                game: game,
+                rankings: rankings
+        }
 
-                if (sendData && JSON.stringify(allowedData) !== JSON.stringify(data)) {
-                        // Probably bad practice but used to copy object
-                        allowedData = JSON.parse(JSON.stringify(data));
-                }
+        if (sendData && JSON.stringify(allowedData) !== JSON.stringify(data)) {
+                // Probably bad practice but used to copy object
+                allowedData = JSON.parse(JSON.stringify(data));
+        }
 
-                let directMessageChannels: DirectMessageChannel[] = await new Promise<DirectMessageChannel[]>((resolve) => {
-                        getDirectMessageChannels((directMessageChannels) => {
-                                resolve(directMessageChannels);
-                        });
-                });
+        if (req.user == undefined) {
+                res.sendStatus(401);
+                return;
+        }
 
-                directMessageChannels = directMessageChannels.filter((channel) => channel.initiatedBy == user.username || channel.receiver == user.username)
+        const filteredDirectMessageChannels = directMessageChannels.filter((channel) => channel.initiatedBy == req.user?.username || channel.receiver == req.user?.username)
 
-                allowedData.live = sendData;
-                allowedData.chat = chat
-                allowedData.version = version;
-                allowedData.me = {
-                        name: user.realName,
-                        username: user.username,
-                        friends: user.friends,
-                        friendRequests: user.friendRequests,
-                        blockedUsers: user.blockedUsers,
-                        directMessageChannels: directMessageChannels,
-                        acceptingFriendRequests: user.acceptingFriendRequests,
-                        silent: user.silent
-                }
+        allowedData.live = sendData;
+        allowedData.chat = chat
+        allowedData.version = version;
+        allowedData.me = {
+                name: req.user.realName,
+                username: req.user.username,
+                friends: req.user.friends.map((f) => f.username),
+                friendRequests: req.user.friendRequests.map((r) => r.username),
+                blockedUsers: req.user.blocked.map((b) => b.username),
+                directMessageChannels: filteredDirectMessageChannels,
+                acceptingFriendRequests: req.user.acceptingFriendRequests,
+                silent: req.user.silent
+        }
 
-                res.send(allowedData)
+        res.send(allowedData)
 
-        })
 })
 
-app.post('/post', (req: Request, res: Response) => {
-        authenticate(req, res, (user, userIndex, key) => {
-                let body: PostObject = req.body;
+app.post('/post', authenticate, async (req: AuthenticatedRequest, res: Response) => {
+        let body: PostObject = req.body;
+        let user: UserModel | undefined = req.user;
+        let key: string | undefined = req.key;
 
-                // Joining game
-                if (body.action == "join" && body.name) {
-                        const joinGameRes: JoinGameRes = joinGame(body.name, user, game.canJoin)
+        if (!user) {
+                res.sendStatus(401)
+                return;
+        }
 
-                        if (joinGameRes.status == "error") {
-                                res.send({ res: joinGameRes })
-                        } else {
-                                res.cookie("key", joinGameRes.key, { httpOnly: true })
-                                res.send({ res: "OK" })
-                        }
+        // Joining game
+        if (body.action == "join" && body.name) {
+                const joinGameRes: JoinGameRes = joinGame(body.name, user, game.canJoin)
 
-                        return;
+                if (joinGameRes.status == "error") {
+                        res.send({ res: joinGameRes })
+                } else {
+                        res.cookie("key", joinGameRes.key, { httpOnly: true })
+                        res.send({ res: "OK" })
                 }
 
-                // Chatting for players not in the game
-                if (body.action == "chat" && body.message) {
-                        sendMessage(body.message, user.realName, user.realName)
-                        res.send({ res: "OK" });
+                return;
+        }
+
+        // Chatting for players not in the game
+        if (body.action == "chat" && body.message) {
+                sendMessage(body.message, user.realName, user.realName)
+                res.send({ res: "OK" });
+                return;
+        }
+
+        if (body.action == "handleFriend" && body.username && (body.accept == false || body.accept == true) ) {
+                const friend = await UserModel.getUser(body.username);
+                if (!friend) {
+                        res.send({ res: "incorrectDataSent" })
                         return;
                 }
+                handleFriend(user, friend, body.accept).then((response) => {
+                        res.send({ res: response })
+                })
+                return;
+        }
 
-                if (body.action == "handleFriend" && body.username && (body.accept == false || body.accept == true) && userIndex !== undefined) {
-                        handleFriend(userIndex, body.username, body.accept).then((response) => {
-                                res.send({ res: response })
-                        })
-                        return;
+        if (body.action == "silentToggle" && (body.mode == false || body.mode == true)) {
+                user.update({ silent: body.mode })
+                res.send({ res: "OK" });
+                return;
+        }
+
+        if (body.action == "acceptRequestsToggle"  && (body.mode == false || body.mode == true)) {
+                user.update({ acceptingFriendRequests: body.mode })
+                res.send({ res: "OK" });
+                return;
+        }
+
+        if (body.action == "unblock"  && body.username) {
+                const friend = await UserModel.getUser(body.username);
+                if (friend) user.unblock(friend);
+                res.send({ res: "OK" });
+                return;
+        }
+
+        if (body.action == "addFriend" && body.username) {
+                const friend = await UserModel.getUser(body.username);
+                if (friend) user.request(friend);
+                res.send({ res: "OK" });
+                return;
+        }
+
+        if (body.action == "messageFriend" && body.username && body.message) {
+                const friend = await UserModel.getUser(body.username);
+                messageFriend(user, friend, body.message).then((response) => {
+                        res.send({ res: response })
+                })
+                return;
+        }
+
+        if (body.action == "readMessages" && body.friend && body.messageReverseIndices) {
+                readMessages(user, body.friend, body.messageReverseIndices)
+                res.send({ res: "OK" });
+                return;
+        }
+
+        if (body.action == "inviteFriend" && body.username) {
+                const friend = await UserModel.getUser(body.username);
+                if (friend) {
+                        res.send({ res: inviteFriend(user, friend) })
                 }
+                return;
+        }
 
-                if (body.action == "silentToggle" && userIndex !== undefined && (body.mode == false || body.mode == true)) {
-                        setSilentMode(userIndex, body.mode)
-                        res.send({ res: "OK" });
-                        return;
-                }
+        // From here on out only players with their correct game key can do actions
+        // NOTE: Game keys can likely be removed due to new JWT implementation
 
-                if (body.action == "acceptRequestsToggle" && userIndex !== undefined && (body.mode == false || body.mode == true)) {
-                        setFriendRequestMode(userIndex, body.mode)
-                        res.send({ res: "OK" });
-                        return;
-                }
+        // Chatting for players in the game
+        if (body.action == "chatInGame" && body.message && body.name && key && playerKeys[body.name] == key) {
+                sendMessage(body.message, body.name, user.realName);
+                res.send({ res: "OK" });
+                return;
+        }
 
-                if (body.action == "unblock" && userIndex !== undefined && body.username) {
-                        unblockUser(userIndex, body.username)
-                        res.send({ res: "OK" });
-                        return;
-                }
+        // Starting the game
+        if (body.action == "start" && body.name && key && playerKeys[body.name] == key) {
+                voteStartGame(user.username);
+                res.send({ res: "OK" });
+                return;
+        }
 
-                if (body.action == "addFriend" && body.username && userIndex !== undefined) {
-                        addFriend(userIndex, body.username).then((response) => {
-                                res.send({ res: response })
-                        })
-                        return;
-                }
+        // Making a move
+        if (body.action == "play" && body.move && body.name && key && playerKeys[body.name] == key) {
+                makeMove(body.move, body.name)
+                res.send({ res: "OK" });
+                return;
+        }
 
-                if (body.action == "messageFriend" && body.username && body.message) {
-                        messageFriend(user, body.username, body.message).then((response) => {
-                                res.send({ res: response })
-                        })
-                        return;
-                }
-
-                if (body.action == "readMessages" && body.friend && body.messageReverseIndices) {
-                        readMessages(user, body.friend, body.messageReverseIndices)
-                        res.send({ res: "OK" });
-                        return;
-                }
-
-                if (body.action == "inviteFriend" && body.username) {
-                        res.send({ res: inviteFriend(user, body.username) })
-                        return;
-                }
-
-                // From here on out only players with their correct game key can do actions
-                // NOTE: Game keys can likely be removed due to new JWT implementation
-
-                // Chatting for players in the game
-                if (body.action == "chatInGame" && body.message && body.name && key && playerKeys[body.name] == key) {
-                        sendMessage(body.message, body.name, user.realName);
-                        res.send({ res: "OK" });
-                        return;
-                }
-
-                // Starting the game
-                if (body.action == "start" && body.name && key && playerKeys[body.name] == key) {
-                        voteStartGame(user.username);
-                        res.send({ res: "OK" });
-                        return;
-                }
-
-                // Making a move
-                if (body.action == "play" && body.move && body.name && key && playerKeys[body.name] == key) {
-                        makeMove(body.move, body.name)
-                        res.send({ res: "OK" });
-                        return;
-                }
-
-                res.send({ res: "incorrectDataSent" })
-        })
+        res.send({ res: "incorrectDataSent" })
 })
 
 // Used to leave the game. Browser sends beacon here on page close.
-app.post('/leave', (req: Request, res: Response) => {
-        authenticate(req, res, (user, userIndex, key) => {
-                if (key) {
-                        removePlayer(user.username, key)
-                }
-                res.send("OK")
-        })
+app.post('/leave', (req: AuthenticatedRequest, res: Response) => {
+        if (req.key && req.user) {
+                removePlayer(req.user.username, req.key)
+        }
+        res.send("OK")
 })
 
 // Route used to subscribe to push notifications.
-app.post('/subscribe', (req: Request, res: Response) => {
-        authenticate(req, res, (user) => {
-                let subscription: SubscriptionInformation = req.body;
-                subscription.username = user.username;
-                addToSubscriberDB(subscription);
+app.post('/subscribe', authenticate, (req: AuthenticatedRequest, res: Response) => {
+        let subscription: SubscriptionInformation = req.body;
+        if (req.user) {
+                req.user.addSubscription(subscription);
                 res.status(201).send("Subscribed")
-        })
+        } else {
+                res.sendStatus(401)
+        }
 })
 
 // Protected static routes
@@ -219,7 +232,7 @@ app.get("*", (req: Request, res: Response) => {
 /**
  * Opens a static route at the "/../client/static/" directory.
  * @param route Route to open. Omit starting "/".
- * @param protectedRoute Whether to protect the route. Defaults to true.
+ * @param protectedRoute Whether to protect the route. Defaults to `true`.
  * @param file Optinal: The relative file path for the route.
  */
 function openStaticRoute(route: string, protectedRoute: boolean = true, file?: string) {
