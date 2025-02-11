@@ -8,8 +8,9 @@ import SubscriptionModel from './SubscriptionModel';
 // Initialize Sequelize with SQLite
 const sequelize = new Sequelize({
     dialect: 'sqlite',
-    storage: './database.db', // Path to the SQLite database file
-    models: [UserModel, FriendModel, FriendRequestModel, BlockedUserModel, SubscriptionModel]
+    storage: './storage/database.db', // Path to the SQLite database file
+    models: [UserModel, FriendModel, FriendRequestModel, BlockedUserModel, SubscriptionModel],
+    logging: false
 });
 
 export default sequelize;

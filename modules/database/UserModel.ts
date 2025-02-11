@@ -97,8 +97,8 @@ class UserModel extends Model<UserInterface> {
         await FriendModel.destroy({
             where: {
                 [Op.or]: [
-                    { userA: this.id, userB: user.id },
-                    { userA: user.id, userB: this.id }
+                    { userA: this.username, userB: user.username },
+                    { userA: user.username, userB: this.username }
                 ]
             }
         });

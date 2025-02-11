@@ -20,7 +20,7 @@ let me: PlayerInformation = {
         joinedGame: false
 };
 
-if (window.location.host == "dev.grayjn.com") {
+if (window.location.host !== "game.grayjn.com") {
         $(document).ready(function () {
                 $("#dev").show()
         })

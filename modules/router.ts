@@ -38,7 +38,7 @@ app.get('/get', authenticate, (req: AuthenticatedRequest, res: Response) => {
                 players: players,
                 game: game,
                 rankings: rankings
-        }
+        }                                                                               
 
         if (sendData && JSON.stringify(allowedData) !== JSON.stringify(data)) {
                 // Probably bad practice but used to copy object
@@ -166,7 +166,7 @@ app.post('/post', authenticate, async (req: AuthenticatedRequest, res: Response)
 
         // Chatting for players in the game
         if (body.action == "chatInGame" && body.message && body.name && key && playerKeys[body.name] == key) {
-                sendMessage(body.message, body.name, user.realName);
+                sendMessage(body.message, user.username, user.realName);
                 res.send({ res: "OK" });
                 return;
         }
