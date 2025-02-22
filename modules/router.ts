@@ -96,7 +96,7 @@ app.post('/post', authenticate, async (req: AuthenticatedRequest, res: Response)
 
         // Chatting for players not in the game
         if (body.action == "chat" && body.message) {
-                sendMessage(body.message, user.realName, user.realName)
+                sendMessage(body.message, user)
                 res.send({ res: "OK" });
                 return;
         }
@@ -166,7 +166,7 @@ app.post('/post', authenticate, async (req: AuthenticatedRequest, res: Response)
 
         // Chatting for players in the game
         if (body.action == "chatInGame" && body.message && body.name && key && playerKeys[body.name] == key) {
-                sendMessage(body.message, user.username, user.realName);
+                sendMessage(body.message, user, body.name);
                 res.send({ res: "OK" });
                 return;
         }
@@ -233,8 +233,11 @@ app.get("*", (req: Request, res: Response) => {
  * Opens a static route at the "/../client/static/" directory.
  * @param route Route to open. Omit starting "/".
  * @param protectedRoute Whether to protect the route. Defaults to `true`.
- * @param file Optinal: The relative file path for the route.
+ * @param file The relative file path for the route.
  */
+function openStaticRoute(route: string): void
+function openStaticRoute(route: string, protectedRoute: boolean): void
+function openStaticRoute(route: string, protectedRoute: boolean, file: string): void
 function openStaticRoute(route: string, protectedRoute: boolean = true, file?: string) {
         if (protectedRoute) {
                 app.get('/' + route, (req: Request, res: Response) => {

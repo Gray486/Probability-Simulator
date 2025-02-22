@@ -198,7 +198,7 @@ function newTurn(): void {
         for (let i = 0; i < players.length; i++) {
                 if (players[i].alive) {
                         // If they choose the wrong move and this isn't the first turn of the round
-                        if ((players[i].move != game.result || players[i].move == "freeSpin") && game.numbersLeft.length != 12) {
+                        if (players[i].move != game.result && players[i].move != "freeSpin" && game.numbersLeft.length != 12) {
                                 players[i].alive = false
                         }
 
@@ -311,7 +311,11 @@ function newRound(): void {
  * @param username The name that will appear in the chat.
  * @param realName The name that will appear in the chatlog.
  */
-export function sendMessage(message: string, username: string | undefined, realName: string): void {
+export function sendMessage(message: string, user: UserModel, playerName?: string): void {
+
+        if (message.includes("@")) {
+                
+        }
 
         // Removes 50th chat message to make some space
         if (chat.length > 50) {
@@ -322,14 +326,14 @@ export function sendMessage(message: string, username: string | undefined, realN
                 message = message.slice(0, 50);
         }
 
-        if (!username) {
-                username = "???"
+        if (!playerName) {
+                playerName = user.username
         }
 
-        chat.push(`${username}: ${message}`)
+        chat.push(`${playerName}: ${message}`)
 
         // Logs chat message to json file
-        logChatMessage(username, realName, message)
+        logChatMessage(user.username, user.realName, message)
 }
 
 /** 
