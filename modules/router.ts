@@ -1,6 +1,9 @@
 import * as bodyParser from "body-parser";
 const cookieParser = require("cookie-parser");
 import express, { Request, Response } from 'express';
+import { WebSocket, WebSocketServer } from 'ws';
+import https from 'https';
+import fs from 'fs';
 import { authenticate, readMessages, handleFriend, handleUser, inviteFriend, messageFriend, AuthenticatedRequest } from "./accounts";
 import { GameData, JoinGameRes, PostObject, SendData, UserLoginRes } from "../types";
 import { chat, game, joinGame, makeMove, playerKeys, playerList, players, rankings, removePlayer, sendData, sendMessage, voteStartGame } from "./game";
@@ -9,7 +12,13 @@ import { directMessageChannels } from "./files";
 import UserModel from "./database/UserModel";
 import { SubscriptionInformation } from "./database/SubscriptionModel";
 
+const httpsCredentials = {
+        key: fs.readFileSync('/path/to/key.pem', 'utf8'),
+        cert: fs.readFileSync('/path/to/cert.pem', 'utf8')
+};
 const app = express();
+const server = https.createServer(httpsCredentials, app);
+const wss = new WebSocketServer({ server });
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser())
@@ -38,7 +47,7 @@ app.get('/get', authenticate, (req: AuthenticatedRequest, res: Response) => {
                 players: players,
                 game: game,
                 rankings: rankings
-        }                                                                               
+        }
 
         if (sendData && JSON.stringify(allowedData) !== JSON.stringify(data)) {
                 // Probably bad practice but used to copy object
@@ -69,6 +78,23 @@ app.get('/get', authenticate, (req: AuthenticatedRequest, res: Response) => {
         res.send(allowedData)
 
 })
+
+const clients = new Set<WebSocket>();
+
+wss.on('connection', (ws: WebSocket) => {
+        console.log('New WebSocket client connected');
+        clients.add(ws);
+
+        ws.on('message', (message) => {
+                console.log(`Received: ${message}`);
+                ws.send(`Echo: ${message}`);
+        });
+
+        ws.on('close', () => {
+                console.log('Client disconnected');
+                clients.delete(ws);
+        });
+});
 
 app.post('/post', authenticate, async (req: AuthenticatedRequest, res: Response) => {
         let body: PostObject = req.body;
@@ -101,7 +127,7 @@ app.post('/post', authenticate, async (req: AuthenticatedRequest, res: Response)
                 return;
         }
 
-        if (body.action == "handleFriend" && body.username && (body.accept == false || body.accept == true) ) {
+        if (body.action == "handleFriend" && body.username && (body.accept == false || body.accept == true)) {
                 const friend = await UserModel.getUser(body.username);
                 if (!friend) {
                         res.send({ res: "incorrectDataSent" })
@@ -119,13 +145,13 @@ app.post('/post', authenticate, async (req: AuthenticatedRequest, res: Response)
                 return;
         }
 
-        if (body.action == "acceptRequestsToggle"  && (body.mode == false || body.mode == true)) {
+        if (body.action == "acceptRequestsToggle" && (body.mode == false || body.mode == true)) {
                 user.update({ acceptingFriendRequests: body.mode })
                 res.send({ res: "OK" });
                 return;
         }
 
-        if (body.action == "unblock"  && body.username) {
+        if (body.action == "unblock" && body.username) {
                 const friend = await UserModel.getUser(body.username);
                 if (friend) user.unblock(friend);
                 res.send({ res: "OK" });
@@ -254,7 +280,7 @@ function openStaticRoute(route: string, protectedRoute: boolean = true, file?: s
 
 /** Opens server on specified port. */
 export function openWebServer(port: number) {
-        app.listen(port, () => {
+        server.listen(port, () => {
                 console.log(`Listening on ${port}!`)
         })
 }
