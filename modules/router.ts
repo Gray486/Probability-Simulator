@@ -2,8 +2,7 @@ import * as bodyParser from "body-parser";
 const cookieParser = require("cookie-parser");
 import express, { Request, Response } from 'express';
 import { WebSocket, WebSocketServer } from 'ws';
-import https from 'https';
-import fs from 'fs';
+import http from 'http';
 import { authenticate, readMessages, handleFriend, handleUser, inviteFriend, messageFriend, AuthenticatedRequest } from "./accounts";
 import { GameData, JoinGameRes, PostObject, SendData, UserLoginRes } from "../types";
 import { chat, game, joinGame, makeMove, playerKeys, playerList, players, rankings, removePlayer, sendData, sendMessage, voteStartGame } from "./game";
@@ -12,12 +11,8 @@ import { directMessageChannels } from "./files";
 import UserModel from "./database/UserModel";
 import { SubscriptionInformation } from "./database/SubscriptionModel";
 
-const httpsCredentials = {
-        key: fs.readFileSync('/path/to/key.pem', 'utf8'),
-        cert: fs.readFileSync('/path/to/cert.pem', 'utf8')
-};
 const app = express();
-const server = https.createServer(httpsCredentials, app);
+const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -40,58 +35,51 @@ app.post('/', async (req: Request, res: Response) => {
 /** Data that is allowed to be viewed by clients at this time. */
 let allowedData: SendData;
 
-// Data for client to retrieve about game
-app.get('/get', authenticate, (req: AuthenticatedRequest, res: Response) => {
-        let data: GameData = {
-                playerList: playerList,
-                players: players,
-                game: game,
-                rankings: rankings
-        }
+// // Data for client to retrieve about game
+// app.get('/get', authenticate, (req: AuthenticatedRequest, res: Response) => {
+//         let data: GameData = {
+//                 playerList: playerList,
+//                 players: players,
+//                 game: game,
+//                 rankings: rankings
+//         }
 
-        if (sendData && JSON.stringify(allowedData) !== JSON.stringify(data)) {
-                // Probably bad practice but used to copy object
-                allowedData = JSON.parse(JSON.stringify(data));
-        }
+//         if (sendData && JSON.stringify(allowedData) !== JSON.stringify(data)) {
+//                 // Probably bad practice but used to copy object
+//                 allowedData = JSON.parse(JSON.stringify(data));
+//         }
 
-        if (req.user == undefined) {
-                res.sendStatus(401);
-                return;
-        }
+//         if (req.user == undefined) {
+//                 res.sendStatus(401);
+//                 return;
+//         }
 
-        const filteredDirectMessageChannels = directMessageChannels.filter((channel) => channel.initiatedBy == req.user?.username || channel.receiver == req.user?.username)
+//         const filteredDirectMessageChannels = directMessageChannels.filter((channel) => channel.initiatedBy == req.user?.username || channel.receiver == req.user?.username)
 
-        allowedData.live = sendData;
-        allowedData.chat = chat
-        allowedData.version = version;
-        allowedData.me = {
-                name: req.user.realName,
-                username: req.user.username,
-                friends: req.user.friends.map((f) => f.username),
-                friendRequests: req.user.friendRequests.map((r) => r.username),
-                blockedUsers: req.user.blocked.map((b) => b.username),
-                directMessageChannels: filteredDirectMessageChannels,
-                acceptingFriendRequests: req.user.acceptingFriendRequests,
-                silent: req.user.silent
-        }
+//         allowedData.live = sendData;
+//         allowedData.chat = chat
+//         allowedData.version = version;
+//         allowedData.me = {
+//                 name: req.user.realName,
+//                 username: req.user.username,
+//                 friends: req.user.friends.map((f) => f.username),
+//                 friendRequests: req.user.friendRequests.map((r) => r.username),
+//                 blockedUsers: req.user.blocked.map((b) => b.username),
+//                 directMessageChannels: filteredDirectMessageChannels,
+//                 acceptingFriendRequests: req.user.acceptingFriendRequests,
+//                 silent: req.user.silent
+//         }
 
-        res.send(allowedData)
+//         res.send(allowedData)
 
-})
+// })
 
 const clients = new Set<WebSocket>();
 
 wss.on('connection', (ws: WebSocket) => {
-        console.log('New WebSocket client connected');
         clients.add(ws);
 
-        ws.on('message', (message) => {
-                console.log(`Received: ${message}`);
-                ws.send(`Echo: ${message}`);
-        });
-
         ws.on('close', () => {
-                console.log('Client disconnected');
                 clients.delete(ws);
         });
 });
@@ -258,13 +246,12 @@ app.get("*", (req: Request, res: Response) => {
 /**
  * Opens a static route at the "/../client/static/" directory.
  * @param route Route to open. Omit starting "/".
- * @param protectedRoute Whether to protect the route. Defaults to `true`.
+ * @param protectedRoute Whether to protect the route.
  * @param file The relative file path for the route.
  */
-function openStaticRoute(route: string): void
 function openStaticRoute(route: string, protectedRoute: boolean): void
 function openStaticRoute(route: string, protectedRoute: boolean, file: string): void
-function openStaticRoute(route: string, protectedRoute: boolean = true, file?: string) {
+function openStaticRoute(route: string, protectedRoute: boolean, file?: string) {
         if (protectedRoute) {
                 app.get('/' + route, (req: Request, res: Response) => {
                         authenticate(req, res, () => {
