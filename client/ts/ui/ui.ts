@@ -1,6 +1,6 @@
 import { joinGame } from "game";
 import { SettingsPanels } from "types";
-import { DirectMessageChannel, Message, Ranking, SendData } from "../../types";
+import { DirectMessageChannel, Message, Ranking, SendData } from "../../../types";
 import { me } from "state";
 
 if (window.location.host !== "game.grayjn.com") {

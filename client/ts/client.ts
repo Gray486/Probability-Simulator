@@ -4,32 +4,6 @@ import { known, me } from "state";
 
 let data: SendData;
 
-async function post(data: PostObject) {
-    console.log(data)
-
-    const url = "/post"
-    return fetch(url, {
-        method: "POST",
-        credentials: 'same-origin',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    }).then(res => res.json()).then(data => {
-        return data.res
-    });
-}
-
-async function get(): Promise<SendData | undefined> {
-    try {
-        return fetch("/get").then((res) => res.json().then((res) => {
-            return res;
-        }));
-    } catch (err) {
-        console.error(err)
-    }
-}
-
 let starttime: number;
 let starttimer: NodeJS.Timeout;
 
