@@ -11,21 +11,21 @@ export let directMessageChannels: DirectMessageChannel[] = [];
 export const KEYS: KeysFile = JSON.parse(fs.readFileSync(KEYS_FILE_PATH).toString());
 
 function getChatLogAsync(next: (data: ChatLog[]) => void): void {
-        fs.readFile(CHAT_LOG_PATH, (err, data) => {
-                if (err) return;
-                let chatLog: ChatLog[] = JSON.parse(data.toString());
-                next(chatLog)
-        });
+    fs.readFile(CHAT_LOG_PATH, (err, data) => {
+        if (err) return;
+        let chatLog: ChatLog[] = JSON.parse(data.toString());
+        next(chatLog)
+    });
 }
 
 function setChatLog(chatLog: ChatLog[]): void {
-        fs.writeFile(CHAT_LOG_PATH, JSON.stringify(chatLog), () => { });
+    fs.writeFile(CHAT_LOG_PATH, JSON.stringify(chatLog), () => { });
 }
 
 /** Logs chat message. */
 export function logChatMessage(username: string, realName: string, message: string) {
-        getChatLogAsync((chatLog) => {
-                chatLog.push({ username: username, realName: realName, message: message })
-                setChatLog(chatLog)
-        })
+    getChatLogAsync((chatLog) => {
+        chatLog.push({ username: username, realName: realName, message: message })
+        setChatLog(chatLog)
+    })
 }

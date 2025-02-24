@@ -16,20 +16,20 @@ webpush.setVapidDetails(VAPID.SUBJECT, VAPID.PUBLIC_KEY, VAPID.PRIVATE_KEY);
  * @param body Body of push notification.
  */
 export async function blastPushNotifications(title: string, body: string): Promise<void> {
-        const subscriptionModels = (await SubscriptionModel.findAll())
-        let subscribers: SubscriptionInformation[] = subscriptionModels.map((m) => m.fullSubcription)
+    const subscriptionModels = (await SubscriptionModel.findAll())
+    let subscribers: SubscriptionInformation[] = subscriptionModels.map((m) => m.fullSubcription)
 
-        for (let i = 0; i < subscribers.length; i++) {
-                const payload = {
-                        title: title,
-                        body: body,
-                        icon: "",
-                };
+    for (let i = 0; i < subscribers.length; i++) {
+        const payload = {
+            title: title,
+            body: body,
+            icon: "",
+        };
 
-                try {
-                        await webpush.sendNotification(subscribers[i], JSON.stringify(payload));
-                } catch (err) { }
-        }
+        try {
+            await webpush.sendNotification(subscribers[i], JSON.stringify(payload));
+        } catch (err) { }
+    }
 }
 
 /**
@@ -39,16 +39,16 @@ export async function blastPushNotifications(title: string, body: string): Promi
  * @param body Body of push notification.
  */
 export async function sendPushNotification(subscriptions: SubscriptionInformation[], title: string, body: string): Promise<void> {
-        for (let i = 0; i < subscriptions.length; i++) {
-                const subscription = subscriptions[i];
-                const payload = {
-                        title: title,
-                        body: body,
-                        icon: "",
-                };
+    for (let i = 0; i < subscriptions.length; i++) {
+        const subscription = subscriptions[i];
+        const payload = {
+            title: title,
+            body: body,
+            icon: "",
+        };
 
-                try {
-                        await webpush.sendNotification(subscriptions[i], JSON.stringify(payload));
-                } catch (err) { }
-        }
+        try {
+            await webpush.sendNotification(subscriptions[i], JSON.stringify(payload));
+        } catch (err) { }
+    }
 }
