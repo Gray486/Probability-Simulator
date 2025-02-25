@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import { ChatLog, KeysFile, DirectMessageChannel } from "../types";
 
-const KEYS_FILE_PATH: string = __dirname + "/../storage/keys.json"
+const KEYS_FILE_PATH: string = __dirname + "/../keys/keys.json"
 const CHAT_LOG_PATH: string = __dirname + "/../storage/chatlog.json"
 
 export let directMessageChannels: DirectMessageChannel[] = [];
