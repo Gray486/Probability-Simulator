@@ -1,9 +1,6 @@
 import * as bodyParser from "body-parser";
 const cookieParser = require("cookie-parser");
 import express, { Request, Response } from 'express';
-import { WebSocket, WebSocketServer } from 'ws';
-import https from 'https';
-import fs from 'fs';
 import { authenticate, readMessages, handleFriend, handleUser, inviteFriend, messageFriend, AuthenticatedRequest } from "./accounts";
 import { GameData, JoinGameRes, PostObject, SendData, UserLoginRes } from "../types";
 import { chat, game, joinGame, makeMove, playerKeys, playerList, players, rankings, removePlayer, sendData, sendMessage, voteStartGame } from "./game";
@@ -12,13 +9,7 @@ import { directMessageChannels } from "./files";
 import UserModel from "./database/UserModel";
 import { SubscriptionInformation } from "./database/SubscriptionModel";
 
-const httpsCredentials = {
-        key: fs.readFileSync('/path/to/key.pem', 'utf8'),
-        cert: fs.readFileSync('/path/to/cert.pem', 'utf8')
-};
 const app = express();
-const server = https.createServer(httpsCredentials, app);
-const wss = new WebSocketServer({ server });
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser())
@@ -80,21 +71,6 @@ app.get('/get', authenticate, (req: AuthenticatedRequest, res: Response) => {
 })
 
 const clients = new Set<WebSocket>();
-
-wss.on('connection', (ws: WebSocket) => {
-        console.log('New WebSocket client connected');
-        clients.add(ws);
-
-        ws.on('message', (message) => {
-                console.log(`Received: ${message}`);
-                ws.send(`Echo: ${message}`);
-        });
-
-        ws.on('close', () => {
-                console.log('Client disconnected');
-                clients.delete(ws);
-        });
-});
 
 app.post('/post', authenticate, async (req: AuthenticatedRequest, res: Response) => {
         let body: PostObject = req.body;
@@ -280,7 +256,7 @@ function openStaticRoute(route: string, protectedRoute: boolean = true, file?: s
 
 /** Opens server on specified port. */
 export function openWebServer(port: number) {
-        server.listen(port, () => {
+        app.listen(port, () => {
                 console.log(`Listening on ${port}!`)
         })
 }
