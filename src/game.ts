@@ -1,4 +1,4 @@
-import { Player, PlayerKeys, Game as GameState, Move, Ranking, JoinGameRes, GameData, GameResult } from "../types";
+import { Player, PlayerKeys, Game as GameState, Move, JoinGameRes, GameData, GameResult } from "../types";
 import { UserRow } from "./db";
 
 /** Side effects the game needs from the outside world (the database). */
@@ -9,8 +9,8 @@ export interface GameHooks {
     recordGame(username: string, points: number, won: boolean, score: number, busts: number): Promise<void>;
     /** Logs chat message. */
     logChatMessage(username: string, realName: string, message: string): Promise<void>;
-    /** Loads the rankings of every user. */
-    getRankings(): Promise<Ranking[]>;
+    /** Called after a ranked game has been recorded, so the rankings can be reloaded. */
+    refreshRankings(): Promise<void>;
     /** Called whenever the game state changes, so clients can be sent the new state. */
     onChange(): void;
 }
@@ -20,6 +20,10 @@ export type SavedGame = Pick<Game, "playerKeys" | "playerList" | "players" | "ch
 
 /** Max length of a game name. */
 const MAX_NAME_LENGTH = 7;
+
+/** Range of scores a lobby can be played to. */
+export const MIN_POINTS_TO_WIN = 25;
+export const MAX_POINTS_TO_WIN = 500;
 
 const ALL_NUMBERS = () => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
@@ -36,7 +40,8 @@ const newGameState = (): GameState => ({
     lastWinner: "",
     gameNumber: 0,
     lastResults: [],
-    lastRounds: 0
+    lastRounds: 0,
+    pointsToWin: 100
 });
 
 function randomKey(): string {
@@ -65,19 +70,42 @@ export class Game {
     sendData: boolean = true;
     /** Wether or not a user can make a move right now. */
     private canGo: boolean = true;
-    /** Unsorted rankings of users. */
-    rankings: Ranking[] = [];
+    /** Copy of the game data from the last time sending was allowed, see {@link visibleData}. */
+    private allowedData: GameData | null = null;
 
-    constructor(private hooks: GameHooks) { }
+    /**
+     * @param ranked Whether finished games change account rank points. Private lobbies are unranked,
+     * so friends can't farm points off each other.
+     */
+    constructor(private hooks: GameHooks, readonly ranked: boolean = true) { }
 
-    /** Snapshot of the game data that can be sent to clients. */
-    get data(): GameData {
-        return {
-            playerList: this.playerList,
-            players: this.players,
-            game: this.game,
-            rankings: this.rankings
-        };
+    /**
+     * The game data clients are allowed to see. While players are choosing a move this stays
+     * frozen at the moment choosing started, so nobody can see what the others picked.
+     */
+    visibleData(): GameData {
+        if (this.sendData || !this.allowedData) {
+            this.allowedData = structuredClone({ playerList: this.playerList, players: this.players, game: this.game });
+        }
+        return this.allowedData;
+    }
+
+    /** Whether nobody is in the game. */
+    get empty(): boolean {
+        return this.players.length == 0;
+    }
+
+    /** Changes the score needed to win. Only allowed before the game starts. */
+    setPointsToWin(points: number): boolean {
+        if (this.game.started || !Number.isInteger(points) || points < MIN_POINTS_TO_WIN || points > MAX_POINTS_TO_WIN) return false;
+        this.game.pointsToWin = points;
+        return true;
+    }
+
+    /** Cancels every timer, used before a lobby is thrown away. */
+    stop(): void {
+        this.clearFlowTimers();
+        this.clearStartTimer();
     }
 
     save(): SavedGame {
@@ -373,7 +401,7 @@ export class Game {
         this.clearFlowTimers()
 
         // If somebody won, end the game
-        if (players.filter(a => a.score >= 100).length > 0) {
+        if (players.filter(a => a.score >= game.pointsToWin).length > 0) {
             this.endGame()
             return;
         }
@@ -459,7 +487,7 @@ export class Game {
         }
 
         // Removes 20 points if user leaves mid-game
-        if (leftMidGame) {
+        if (leftMidGame && this.ranked) {
             this.hooks.addToScore(username, -20).catch(console.error)
         }
     }
@@ -484,7 +512,7 @@ export class Game {
             username: player.username,
             score: player.score,
             // Solo games don't award points (the formula divides by zero with one player)
-            points: players.length > 1 ? Math.round(20 - (40 * i) / (players.length - 1)) : 0,
+            points: this.ranked && players.length > 1 ? Math.round(20 - (40 * i) / (players.length - 1)) : 0,
             busts: player.busts
         }));
 
@@ -507,9 +535,9 @@ export class Game {
         this.hooks.onChange()
 
         // Updates every player's account score, wins and statistics
+        if (!this.ranked) return;
         await Promise.all(results.map((r, i) => this.hooks.recordGame(r.username, r.points, i == 0, r.score, r.busts))).catch(console.error);
-        await this.setRankings()
-        this.hooks.onChange()
+        await this.hooks.refreshRankings()
     }
 
     private resetGame(): void {
@@ -543,10 +571,5 @@ export class Game {
         if (this.game.started) return;
         const player = this.players.find((a) => a.username == username);
         if (player) this.removePlayer(username, this.playerKeys[player.gameName]);
-    }
-
-    /** Used to set the rankings after a game. Only updates the rankings when needed, as this uses alot of DB reading. */
-    async setRankings(): Promise<void> {
-        this.rankings = await this.hooks.getRankings();
     }
 }

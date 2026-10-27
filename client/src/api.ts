@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react";
 import { PostObject, SendData } from "../../types";
 
+/** Code of the private lobby this page is for (`/game?lobby=CODE`), empty for the public game. */
+export const lobbyCode = (new URLSearchParams(location.search).get("lobby") ?? "").toUpperCase();
+
+/** Adds the lobby to a server path. */
+export function inLobby(path: string): string {
+    return lobbyCode ? `${path}?lobby=${encodeURIComponent(lobbyCode)}` : path;
+}
+
 /** Sends an action to the server and returns the `res` field of the response. */
 export async function post(data: PostObject): Promise<any> {
-    const res = await fetch("/post", {
+    const res = await fetch(inLobby("/post"), {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -24,7 +32,7 @@ export function useGameData(): SendData | null {
 
         function connect() {
             const protocol = location.protocol == "https:" ? "wss:" : "ws:";
-            ws = new WebSocket(`${protocol}//${location.host}/ws`);
+            ws = new WebSocket(`${protocol}//${location.host}${inLobby("/ws")}`);
             let opened = false;
 
             ws.onopen = () => {
@@ -38,6 +46,14 @@ export function useGameData(): SendData | null {
             ws.onclose = async (e) => {
                 if (stopped) return;
                 if (!opened) failures++;
+
+                // The private lobby was closed (or never existed), go back to the public game
+                if (e.code == 4004) {
+                    stopped = true;
+                    alert(`Lobby ${lobbyCode} doesn't exist anymore.`);
+                    location.href = "/game";
+                    return;
+                }
 
                 // Login token expired, send them back to the login page
                 const loggedOut = e.code == 4001 || (failures >= 3 && (await fetch("/game", { method: "HEAD" })).status == 401);

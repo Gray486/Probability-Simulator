@@ -7,6 +7,8 @@ import { RankingsPanel } from "./panels/RankingsPanel";
 import { FriendsPanel, RequestsPanel, unreadFrom } from "./panels/FriendsPanels";
 import { SettingsPanel } from "./panels/SettingsPanel";
 import { GameOver } from "./GameOver";
+import { PrideFlash } from "./PrideFlash";
+import { LobbyBar } from "./LobbyBar";
 import { music, MUSIC_VOLUME } from "./music";
 
 type PanelId = "chat" | "rankings" | "friends" | "settings" | "requests" | "dm";
@@ -92,7 +94,8 @@ function Game({ data }: { data: SendData }) {
     /** Name chosen at game start, empty if not in the game. */
     const [myName, setMyName] = useState("");
     const [spectator, setSpectator] = useState(!data.game.canJoin);
-    const [joinName, setJoinName] = useState("");
+    /** Starts as the username, cut to the max game name length. */
+    const [joinName, setJoinName] = useState(data.me.username.slice(0, 7));
     const [canMove, setCanMove] = useState(false);
     const [usedFreeSpin, setUsedFreeSpin] = useState(false);
     /** The last spin whose animation has finished, until then busted players still show their guess. */
@@ -129,6 +132,7 @@ function Game({ data }: { data: SendData }) {
 
     const joined = myName != "";
     const mine: Player | undefined = data.players.find((p) => p.gameName == myName);
+    const canFreeSpin = !!mine?.freeSpin && !usedFreeSpin;
     latest.current = data;
 
     // Creates the wheel, showing the numbers left if the game is already going
@@ -266,14 +270,15 @@ function Game({ data }: { data: SendData }) {
         if (id == "chat") setChatAlert(false);
     }
 
-    // Up / down arrow keys pick higher / lower, enter banks. The listener is added once, so it
-    // calls through a ref to see the current state.
+    // Up / down arrow keys pick higher / lower, enter banks and shift uses the free spin. The
+    // listener is added once, so it calls through a ref to see the current state.
     const onKeyDown = useRef<(e: KeyboardEvent) => void>(null);
     onKeyDown.current = (e) => {
-        const keyMoves: Record<string, Move> = { ArrowUp: "higher", ArrowDown: "lower", Enter: "bank" };
+        const keyMoves: Record<string, Move> = { ArrowUp: "higher", ArrowDown: "lower", Enter: "bank", Shift: "freeSpin" };
         const move: Move | undefined = keyMoves[e.key];
         const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
         if (!move || typing || e.repeat || !canMove || showResults) return;
+        if (move == "freeSpin" && !canFreeSpin) return;
         // Also stops enter from clicking whichever button has focus
         e.preventDefault();
         play(move);
@@ -313,15 +318,18 @@ function Game({ data }: { data: SendData }) {
     return (
         <>
             <div id="home">
+                {/* Once in a private lobby's game, its code and settings move beside the wheel */}
+                {data.lobby && !showJoin && <LobbyBar data={data} />}
                 {showJoin && (
                     <div id="joinDiv">
                         <div className="joinBox">
                             <label htmlFor="name">Game Name:</label>{" "}
-                            <input type="text" maxLength={7} id="name" placeholder={data.me.username} value={joinName}
+                            <input type="text" maxLength={7} id="name" placeholder={data.me.username.slice(0, 7)} value={joinName}
                                 onChange={(e) => setJoinName(e.target.value)}
                                 onKeyUp={(e) => { if (e.key == "Enter") join() }} />{" "}
                             <button onClick={join}>Join Game</button>
                         </div>
+                        <LobbyBar data={data} />
                     </div>
                 )}
                 {joined && !data.game.started && (
@@ -369,8 +377,8 @@ function Game({ data }: { data: SendData }) {
                         <button disabled={!canMove} onClick={() => play("bank")} title="Enter" style={{ backgroundColor: "#4266c9" }}>Bank <i className="bi bi-bank"></i></button>
                         <button disabled={!canMove} onClick={() => play("higher")} title="Up arrow" style={{ backgroundColor: "#d9d93d" }}>Higher <i className="bi bi-arrow-up-square-fill"></i></button>
                         <button disabled={!canMove} onClick={() => play("lower")} title="Down arrow" style={{ backgroundColor: "#863dd9" }}>Lower <i className="bi bi-arrow-down-square-fill"></i></button>
-                        {mine?.freeSpin && !usedFreeSpin && (
-                            <button disabled={!canMove} onClick={() => play("freeSpin")} style={{ backgroundColor: "#1bc640" }}>Free Spin <i className="bi bi-ticket-detailed"></i></button>
+                        {canFreeSpin && (
+                            <button disabled={!canMove} onClick={() => play("freeSpin")} title="Shift" style={{ backgroundColor: "#1bc640" }}>Free Spin <i className="bi bi-ticket-detailed"></i></button>
                         )}
                     </div>
                 )}
@@ -380,7 +388,8 @@ function Game({ data }: { data: SendData }) {
                 <div id="wheel" ref={wheelDiv} style={{ visibility: showJoin ? "hidden" : "visible" }}></div>
                 <div id="newRound" className={banner.visible ? "visible" : ""}>{banner.text}</div>
             </div>
-            {showResults && <GameOver game={data.game} username={data.me.username} onClose={() => setShowResults(false)} />}
+            {data.me.username == "SamuelD" && <PrideFlash />}
+            {showResults && <GameOver game={data.game} username={data.me.username} ranked={!data.lobby} onClose={() => setShowResults(false)} />}
             {location.host !== "prob.grayjn.com" && (
                 <span id="dev">This is a dev server. Features are not finalized. Data may NOT save.</span>
             )}

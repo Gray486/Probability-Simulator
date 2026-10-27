@@ -87,6 +87,8 @@ export type Game = {
         lastResults: GameResult[];
         /** Number of rounds the last game lasted. */
         lastRounds: number;
+        /** Score a player needs to reach to win. */
+        pointsToWin: number;
 };
 
 /** How a player did in a finished game. */
@@ -115,11 +117,21 @@ export type GameData = {
         playerList: string[];
         players: Player[];
         game: Game;
-        rankings: Ranking[]
+};
+
+/** A private lobby. Private games are unranked. */
+export type LobbyInfo = {
+        /** Code used to join, also in the lobby's link (`/game?lobby=CODE`). */
+        code: string;
+        /** Username of the user that can change the lobby's settings. */
+        host: string;
 };
 
 /** Data that is sent to clients about the game plus extra information. */
 export type SendData = GameData & {
+        rankings: Ranking[];
+        /** The private lobby the user is in, `null` for the public game. */
+        lobby: LobbyInfo | null;
         /** In game chat */
         chat: string[];
         /** Whether game specific data is being live updated. (false when guessing is occuring) */
@@ -191,6 +203,11 @@ export type PostObject = {
         friend: string;
         /** Total number of messages minus the indices of the messages. */
         messageReverseIndices: number[];
+} | {
+        action: "createLobby";
+} | {
+        action: "lobbySettings";
+        pointsToWin: number;
 } | {
         action: "inviteFriend";
         username: string;

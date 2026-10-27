@@ -1,16 +1,23 @@
 import { SendData } from "../../../types";
 import { post } from "../api";
 
-export function SettingsPanel({ me, version, musicOn, onMusicToggle }: { me: SendData["me"]; version: string; musicOn: boolean; onMusicToggle: (on: boolean) => void }) {
-    async function unblockUser() {
-        const user = prompt("Please enter the username of the user to unblock.");
-        if (!user || !me.blockedUsers.includes(user)) {
-            alert("User not found.");
-            return;
-        }
+/** A labelled checkbox on its own row. */
+function Toggle({ id, label, hint, checked, onChange }: { id: string; label: string; hint: string; checked: boolean; onChange: (on: boolean) => void }) {
+    return (
+        <label className="setting" htmlFor={id}>
+            <span>
+                {label}
+                <small>{hint}</small>
+            </span>
+            <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+        </label>
+    );
+}
 
+export function SettingsPanel({ me, version, musicOn, onMusicToggle }: { me: SendData["me"]; version: string; musicOn: boolean; onMusicToggle: (on: boolean) => void }) {
+    async function unblockUser(user: string) {
         const res = await post({ action: "unblock", username: user });
-        alert(res !== "OK" ? res : "Unblocked user.");
+        if (res !== "OK") alert(res);
     }
 
     return (
@@ -24,27 +31,26 @@ export function SettingsPanel({ me, version, musicOn, onMusicToggle }: { me: Sen
                 <div><b>{me.stats.busts}</b><span>Busts</span></div>
                 <div><b>{me.stats.score}</b><span>Rank pts</span></div>
             </div>
-            <label htmlFor="allPushToggle">Do not disturb:</label>
-            <input id="allPushToggle" type="checkbox" checked={me.silent}
-                onChange={(e) => post({ action: "silentToggle", mode: e.target.checked })} /><br />
-            <label htmlFor="acceptRequestsBox">Accepting requests:</label>
-            <input id="acceptRequestsBox" type="checkbox" checked={me.acceptingFriendRequests}
-                onChange={(e) => post({ action: "acceptRequestsToggle", mode: e.target.checked })} />
-            <label htmlFor="toggleMusic">Background track</label>
-            <input id="toggleMusic" type="checkbox" checked={musicOn} onChange={(e) => onMusicToggle(e.target.checked)} />
+            <div className="settingsGroup">
+                <Toggle id="allPushToggle" label="Do not disturb" hint="No push notifications" checked={me.silent}
+                    onChange={(on) => post({ action: "silentToggle", mode: on })} />
+                <Toggle id="acceptRequestsBox" label="Friend requests" hint="Let people send you requests" checked={me.acceptingFriendRequests}
+                    onChange={(on) => post({ action: "acceptRequestsToggle", mode: on })} />
+                <Toggle id="toggleMusic" label="Music" hint="Background track" checked={musicOn} onChange={onMusicToggle} />
+            </div>
             {me.blockedUsers.length > 0 && (
-                <div id="blockedSettings">
-                    <h3 id="blockedUsersListHeading">Blocked Users</h3>
-                    <div id="blockedUsersList">
-                        <br />
-                        {me.blockedUsers.map((user) => <div key={user}>{user}</div>)}
-                        <br />
-                    </div>
-                    <button id="unblockUser" onClick={unblockUser}>Click to Unblock Users</button>
+                <div className="settingsGroup" id="blockedSettings">
+                    <h3>Blocked users</h3>
+                    {me.blockedUsers.map((user) => (
+                        <div className="blockedUser" key={user}>
+                            <span>{user}</span>
+                            <button onClick={() => unblockUser(user)}>Unblock</button>
+                        </div>
+                    ))}
                 </div>
             )}
             <div id="credits">
-                <span>Version: {version}</span><br />
+                <span>Version {version}</span><br />
                 <span>Consultant: Esan Ebner</span><br />
                 <span>Music: Willustrious Ellen</span><br />
                 <span>Developer: Gray Jackson-Noell</span><br />

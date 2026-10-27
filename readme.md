@@ -1,9 +1,11 @@
 # Probability Simulator
+See `AGENTS.md` for notes on working in this codebase.
+
 Runs as a single Cloudflare Worker:
  - `src/index.ts` serves `client/static`, handles Google login and checks the login token.
- - `src/game-room.ts` is a Durable Object holding the live game (one global game, like before).
-   Clients keep a websocket open to it and are pushed the game state whenever it changes;
-   actions are sent as `POST /post`.
+ - `src/game-room.ts` is a Durable Object holding the public game and any private lobbies
+   (`/game?lobby=CODE`). Clients keep a websocket open to it and are pushed the game state
+   whenever it changes; actions are sent as `POST /post`.
  - Accounts, friends, DMs, push subscriptions and the chat log live in a D1 database (`migrations/`).
  - `client/src` is the React client. `npm run build` bundles it to `client/static/js/client.js`
    (wrangler runs this automatically before `dev` and `deploy`).
