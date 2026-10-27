@@ -276,6 +276,8 @@ body {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.5s;
+    /* Above the lobby box */
+    z-index: 6;
 }
 
 #newRound.visible {
