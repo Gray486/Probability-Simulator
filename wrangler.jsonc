@@ -1,0 +1,41 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "probability-simulator",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-10-01",
+	// Bundles the React client into client/static/js before dev and deploy
+	"build": { "command": "npm run build" },
+	// Personal Cloudflare account. Pinning it here means a token for any other account
+	// (e.g. the robotics one in CLOUDFLARE_API_TOKEN) fails instead of deploying there.
+	"account_id": "4d10375743a3018c7a11901817f91ed1",
+	"assets": {
+		"directory": "./client/static",
+		"binding": "ASSETS",
+		"html_handling": "none",
+		"not_found_handling": "none",
+		// Every request goes through the worker so /game, /js/client.js and /worker.js stay behind login.
+		"run_worker_first": true
+	},
+	"durable_objects": {
+		"bindings": [{ "name": "GAME", "class_name": "GameRoom" }]
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "probability-simulator",
+			"database_id": "9d88bede-7fa8-409f-b0e0-67589a1c66a3",
+			"migrations_dir": "migrations"
+		}
+	],
+	"vars": {
+		"G_CLIENT_ID": "280506459971-j3j6cj6cpca6g2ndbb9kq5429i3krrju.apps.googleusercontent.com",
+		"VAPID_PUBLIC_KEY": "BEagjSu_2TEC8gi4sG278VkcPYcYxUm8n2sEH_O5B95Kk3N8_ndDLTWpn3mqY8cCWQo3Hbh_8Z1ejSUN-LVtQKE"
+	},
+	// Secrets (wrangler secret put / .dev.vars): JWT_SECRET, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+	"observability": { "enabled": true },
+	"routes": [{ "pattern": "prob.grayjn.com", "custom_domain": true }],
+	// Only serve on the custom domain, so Google sign-in has a single origin
+	"workers_dev": false,
+	"preview_urls": false
+}

@@ -2,40 +2,30 @@
   "name": "push-your-luck-multiplayer",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "private": true,
   "scripts": {
-    "compileClient": "npx esbuild client/ts/client.ts --bundle --outfile=client/static/js/client.js",
-    "dev": "npm run compileClient && ts-node index.ts port 8004",
-    "pm2": "NODE_ENV=production pm2 start index.ts --watch -- port 8000"
+    "build": "esbuild client/src/main.tsx --bundle --minify --target=es2022 --outfile=client/static/js/client.js",
+    "dev": "wrangler dev",
+    "deploy": "env -u CLOUDFLARE_API_TOKEN wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply probability-simulator --local",
+    "db:migrate:remote": "env -u CLOUDFLARE_API_TOKEN wrangler d1 migrations apply probability-simulator --remote",
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p client"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@types/cookie-parser": "^1.4.8",
-    "@types/express": "^5.0.0",
-    "@types/jquery": "^3.5.32",
-    "@types/jsonwebtoken": "^9.0.7",
-    "@types/node": "^22.10.1",
-    "@types/web-push": "^3.6.4",
-    "@types/ws": "^8.5.14",
-    "better-sqlite3": "^11.8.1",
-    "body-parser": "^1.20.3",
-    "cookie-parser": "^1.4.7",
-    "express": "^4.21.1",
-    "google-auth-library": "^9.15.0",
-    "jsonwebtoken": "^9.0.2",
-    "sequelize": "^6.37.5",
-    "sequelize-typescript": "^2.1.6",
-    "sqlite3": "^5.1.7",
-    "ts-node": "^10.9.2",
-    "web-push": "^3.6.7",
-    "ws": "^8.18.1"
+    "@block65/webcrypto-web-push": "^2.0.0",
+    "jose": "^6.2.13",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "spin-wheel": "^5.0.2"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12",
-    "@types/sequelize": "^4.28.20",
-    "esbuild": "^0.25.0",
-    "ts-loader": "^9.5.2",
-    "typescript": "^5.7.3"
+    "@cloudflare/workers-types": "^5.20261027.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.154.0"
   }
 }

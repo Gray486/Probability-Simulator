@@ -1,3 +1,7 @@
 storage/
 node_modules/
 keys/
+.dev.vars
+.wrangler/
+worker-configuration.d.ts
+client/static/js/client.js

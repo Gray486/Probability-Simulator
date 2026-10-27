@@ -1,119 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
 	<title>Probability Simulator!</title>
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-	<link rel="stylesheet" href="/client.css">
-	<link rel="icon" type="image/png" href="/logo.png" />
 	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<meta name="description" content="A fun probability learning experience.">
 	<meta name="keywords" content="Probability, Learning, Teaching, Education, Simulation">
 	<meta name="author" content="Gray Jackson-Noell">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+	<link rel="stylesheet" href="/client.css">
+	<link rel="icon" type="image/png" href="/logo.png" />
 </head>
-
-<html>
-	<audio id="backgroundMusic">
-		<source src="/audio.m4a" type="audio/x-m4a">
-	</audio>
-
-	<body>	
-		<div id="home">
-			<div id="joinDiv">
-				<subdiv>
-					<label for="name">Game Name:</label>
-					<input type="text" maxlength="7" id="name">
-					<button id="join">Join Game</button>
-				</subdiv>
-			</div>
-			<div id="start">
-				<b><span id="startCount"></span> players have voted to start the match!</b>&nbsp;&nbsp;
-				<button id="start-btn">Start!</button>
-			</div>
-			<div id="panel">
-				<!-- Switches -->
-
-				<div id="rankingsSwitch" class="switch">
-					<i class="bi bi-list-ol"></i>
-				</div>
-				<div id="chatSwitch" class="switch">
-					<i class="bi bi-chat-left-dots-fill"></i>
-				</div>
-				<div id="friendsSwitch" class="switch">
-					<i class="bi bi-person-fill" id="friendsNotificationDot"></i>
-				</div>
-				<div id="settingsSwitch" class="switch">
-					<i class="bi bi-gear-fill"></i>
-				</div>
-
-				<!-- Panels -->
-
-				<div id="settingsDiv" class="panelDiv">
-					<h1 id="settingsUsername">[ERROR]</h1>
-					<label for="allPushToggle">Do not disturb:</label>
-					<input id="allPushToggle" type="checkbox"><br>
-					<label for="acceptRequestsBox">Accepting requests:</label>
-					<input id="acceptRequestsBox" type="checkbox" checked>
-					<label for="toggleMusic">Background track</label>
-					<input id="toggleMusic" type="checkbox" checked>
-					<div id="blockedSettings">
-						<h3 id="blockedUsersListHeading">Blocked Users</h3>
-						<div id="blockedUsersList"></div>
-						<button id="unblockUser">Click to Unblock Users</button>
-					</div>
-					<div id="credits">
-						<span id="versionNumber"></span><br>
-						<span>Consultant: Esan Ebner</span><br>
-						<span>Music: Willustrious Ellen</span><br>
-						<span>Developer: Gray Jackson-Noell</span><br>
-						<span><a style="color: #123cad;" href="https://docs.google.com/forms/d/e/1FAIpQLSc7buVVu51Fy1M8N1935f2DNMRVgVZGXi3dhwlE-mUV89rqzQ/viewform?usp=preview" target="_blank">Suggestion / Bug Report Form</a></span>
-					</div>
-				</div>
-				<div id="friendsDiv" class="panelDiv">
-					
-				</div>
-				<div id="requestsDiv" class="panelDiv">
-					
-				</div>
-				<div id="dmDiv" class="panelDiv">
-					<span id="dmText" class="chatText"></span>
-					<input id="dmMsgText" class="msgText" type="text" maxlength="50">
-					<button id="dmMsg" class="msg">Send</button>
-				</div>
-				<div id="chatDiv" class="panelDiv">
-					<span id="chatText" class="chatText"></span>
-					<input id="msgText" class="msgText" type="text" maxlength="50">
-					<button id="msg" class="msg">Send</button>
-				</div>
-				<div id="rankingsDiv" class="panelDiv">
-					<div id="byWins">
-						<span class="rankingTitle">Wins</span>
-					</div>
-					<div id="byScore">
-						<span class="rankingTitle">Score</span>
-					</div>
-				</div>
-			</div>
-		</div>
-		<div id="players">
-		</div>
-		<div id="game">
-			<div id="controls">
-				<button id="bank" style="background-color: #4266c9;">Bank <i class="bi bi-bank"></i></button>
-				<button id="higher" style="background-color: #d9d93d;">Higher <i class="bi bi-arrow-up-square-fill"></i></button>
-				<button id="lower" style="background-color: #863dd9;">Lower <i class="bi bi-arrow-down-square-fill"></i></button>
-				<button id="freeSpin" style="background-color: #1bc640;">Free Spin <i class="bi bi-ticket-detailed"></i></button>
-			</div>
-			<div id="spectator">You are currently in spectator mode. Please wait until the game is over to join.</div>
-			<div id="pot">0</div>
-			<div id="timer">0</div>
-			<div id="wheel"></div>
-			<div id="newRound">Starting new round!</div>
-		</div>
-		<span id="dev">
-			This is a dev server. Features are not finalized. Data may NOT save.
-		</span>
-	</body>
+<body>
+	<div id="root"></div>
+	<script src="/js/client.js"></script>
+</body>
 </html>
-
-<script>let exports = {};</script>
-<script src="https://cdn.jsdelivr.net/npm/spin-wheel@5.0.1/dist/spin-wheel-iife.js"></script>
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="/js/client.js"></script>

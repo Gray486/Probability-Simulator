@@ -9,7 +9,6 @@
     width: max-content;
     padding: 5px;
     transform: translateX(-50%);
-    display: none;
 }
 
 body {
@@ -73,7 +72,7 @@ body {
     text-align: center;
 }
 
-.ranking #name {
+.ranking .name {
     position: absolute;
     color: black;
     font-size: 35px;
@@ -81,7 +80,7 @@ body {
     left: 5px;
 }
 
-.ranking #score {
+.ranking .score {
     position: absolute;
     color: black;
     font-size: 35px;
@@ -230,7 +229,21 @@ body {
     font-weight: 1000;
     font-size: 100px;
     text-align: center;
-    
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s;
+}
+
+#newRound.visible {
+    opacity: 1;
+}
+
+.panelDiv {
+    animation: fadeIn 0.1s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
 }
 
 #timer {
@@ -345,17 +358,17 @@ body {
     font-size: 30px;
 }
 
-#points {
+#players .points {
     float: left;
     display: block;
 }
 
-#play {
+#players .play {
     float: right;
     display: block;
 }
 
-#joinDiv subdiv {
+#joinDiv .joinBox {
     text-align: center;
     border-width: 5px;
     border-color: black;
@@ -367,7 +380,7 @@ body {
     background-color: #418cd8;
 }
 
-#joinDiv subdiv * {
+#joinDiv .joinBox * {
     display: inline-block;
     position: relative;
     top: 50%;
@@ -453,7 +466,7 @@ body {
     text-decoration: underline;
 }
 
-#dmText {
+.dmText {
     color: black !important;
 }
 

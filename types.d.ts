@@ -66,8 +66,8 @@ export type PlayerKeys = {
 }
 
 export type GameTimers = {
-        start: NodeJS.Timeout | null;
-        play: NodeJS.Timeout | null;
+        start: ReturnType<typeof setTimeout> | null;
+        play: ReturnType<typeof setTimeout> | null;
 };
 
 export type Game = {
@@ -128,11 +128,6 @@ export type JoinGameRes = {
 } | {
         status: "success";
         key: string;
-}
-
-/** A key value pair of users to the last time they send a request. */
-export type LastOnline = {
-        [key: string]: number;
 }
 
 /** The object that is sent in a post request. */
