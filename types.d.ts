@@ -56,6 +56,8 @@ export type Player = {
         lastMove: LastMove;
         /** Number of times a player has not made a move in the given time. */
         strikes: number;
+        /** Number of times the player busted this game. */
+        busts: number;
 }
 
 export type Move = "freeSpin" | "higher" | "lower" | "none" | "bank";
@@ -64,11 +66,6 @@ type LastMove = Move | "stillOut" | "";
 export type PlayerKeys = {
         [key: string]: string;
 }
-
-export type GameTimers = {
-        start: ReturnType<typeof setTimeout> | null;
-        play: ReturnType<typeof setTimeout> | null;
-};
 
 export type Game = {
         numbersLeft: number[];
@@ -84,6 +81,33 @@ export type Game = {
         canJoin: boolean;
         /** Winner of last game. */
         lastWinner: string;
+        /** Goes up by one every time a game ends. */
+        gameNumber: number;
+        /** Final standings of the last game, best first. */
+        lastResults: GameResult[];
+        /** Number of rounds the last game lasted. */
+        lastRounds: number;
+};
+
+/** How a player did in a finished game. */
+export type GameResult = {
+        gameName: string;
+        username: string;
+        /** Score at the end of the game. */
+        score: number;
+        /** Points added to (or taken from) their account. */
+        points: number;
+        busts: number;
+};
+
+/** A user's lifetime statistics. */
+export type UserStats = {
+        score: number;
+        wins: number;
+        gamesPlayed: number;
+        /** Highest score reached in a single game. */
+        bestGame: number;
+        busts: number;
 };
 
 /** Data about the game. */
@@ -112,6 +136,7 @@ export type SendData = GameData & {
                 directMessageChannels: DirectMessageChannel[];
                 silent: boolean;
                 acceptingFriendRequests: boolean;
+                stats: UserStats;
         };
 }
 

@@ -10,4 +10,4 @@ export interface Env {
 }
 
 /** Version number that shows up on settings page */
-export const version = "3.0";
+export const version = "3.1";

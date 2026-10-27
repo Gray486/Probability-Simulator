@@ -21,7 +21,9 @@ export function FriendsPanel({ me, onOpenDm, onViewRequests }: { me: Me; onOpenD
     return (
         <>
             <button className="friendButton" onClick={addFriend}>Add friend</button>
-            <button className="friendButton" onClick={onViewRequests}>View requests</button>
+            <button className="friendButton" onClick={onViewRequests}>
+                View requests{me.friendRequests.length > 0 && ` (${me.friendRequests.length})`}
+            </button>
             {me.friends.map((friend) => (
                 <div className="friend" key={friend}>
                     <span className="name">{friend}</span>

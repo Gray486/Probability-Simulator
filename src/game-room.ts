@@ -39,7 +39,14 @@ export class GameRoom extends DurableObject<Env> {
     constructor(ctx: DurableObjectState, env: Env) {
         super(ctx, env);
         this.game = new Game({
-            addToScore: (username, delta, winDelta) => db.addToScore(env.DB, username, delta, winDelta),
+            addToScore: async (username, delta) => {
+                await db.addToScore(env.DB, username, delta);
+                this.invalidate(username);
+            },
+            recordGame: async (username, points, won, score, busts) => {
+                await db.recordGame(env.DB, username, points, won, score, busts);
+                this.invalidate(username);
+            },
             logChatMessage: (username, realName, message) => db.logChatMessage(env.DB, username, realName, message),
             getRankings: () => db.getRankings(env.DB),
             onChange: () => this.scheduleBroadcast()
@@ -83,7 +90,7 @@ export class GameRoom extends DurableObject<Env> {
                 return res;
             }
             case "/leave":
-                if (key) await this.game.removePlayer(profile.user.username, key);
+                if (key) this.game.removePlayer(profile.user.username, key);
                 this.scheduleBroadcast();
                 return new Response("OK");
             case "/subscribe": {
@@ -170,8 +177,8 @@ export class GameRoom extends DurableObject<Env> {
         }
     }
 
-    private async getProfileByUsername(username: string): Promise<Profile | null> {
-        const user = await db.getUserByUsername(this.env.DB, username);
+    private async getProfileByUsername(username: string, ignoreCase: boolean = false): Promise<Profile | null> {
+        const user = await db.getUserByUsername(this.env.DB, username, ignoreCase);
         return user ? this.getProfile(user.id) : null;
     }
 
@@ -189,6 +196,18 @@ export class GameRoom extends DurableObject<Env> {
         }
         const subscriptions = await db.getSubscriptions(this.env.DB, username);
         this.ctx.waitUntil(sendPushNotification(this.env, subscriptions, title, body));
+    }
+
+    /** Notifies users that were @mentioned in a chat message, unless they've blocked the sender. */
+    private async notifyMentions(sender: Profile, message: string): Promise<void> {
+        const mentioned = new Set([...message.matchAll(/@([^\s@:,.!?]+)/g)].map((m) => m[1].toLowerCase()));
+
+        // Limits how many people one message can ping
+        for (const name of [...mentioned].slice(0, 5)) {
+            const target = await this.getProfileByUsername(name, true);
+            if (!target || target.user.username == sender.user.username || target.blocked.includes(sender.user.username)) continue;
+            await this.notify(target, `${sender.user.username} mentioned you`, message.slice(0, 50));
+        }
     }
 
     // Routes
@@ -215,7 +234,14 @@ export class GameRoom extends DurableObject<Env> {
                 blockedUsers: profile.blocked,
                 directMessageChannels: profile.directMessageChannels.map(({ messageIds, ...channel }) => channel),
                 acceptingFriendRequests: user.acceptingFriendRequests,
-                silent: user.silent
+                silent: user.silent,
+                stats: {
+                    score: user.score,
+                    wins: user.wins,
+                    gamesPlayed: user.gamesPlayed,
+                    bestGame: user.bestGame,
+                    busts: user.busts
+                }
             }
         };
     }
@@ -238,6 +264,7 @@ export class GameRoom extends DurableObject<Env> {
         // Chatting for players not in the game
         if (body.action == "chat" && body.message) {
             game.sendMessage(body.message, user)
+            this.notifyMentions(profile, body.message).catch(console.error)
             return json({ res: "OK" });
         }
 
@@ -250,6 +277,7 @@ export class GameRoom extends DurableObject<Env> {
             if (body.accept) {
                 if (!profile.friends.includes(friend.user.username) && profile.friendRequests.includes(friend.user.username)) {
                     await db.addFriend(DB, user.username, friend.user.username)
+                    this.notify(friend, "Friend request accepted", `${user.username} is now your friend.`).catch(console.error)
                 }
             } else {
                 await db.unfriendAndBlock(DB, user.username, friend.user.username)
@@ -279,11 +307,14 @@ export class GameRoom extends DurableObject<Env> {
         // Requests to friend a user, if user already requested us, then adds friend
         if (body.action == "addFriend" && body.username) {
             const friend = await this.getProfileByUsername(body.username);
-            if (friend && friend.user.username != user.username && !profile.friends.includes(friend.user.username)) {
+            // Users that blocked us (e.g. by denying an earlier request) can't be sent requests
+            if (friend && friend.user.username != user.username && !profile.friends.includes(friend.user.username) && !friend.blocked.includes(user.username)) {
                 if (profile.friendRequests.includes(friend.user.username)) {
                     await db.addFriend(DB, user.username, friend.user.username)
+                    this.notify(friend, "Friend request accepted", `${user.username} is now your friend.`).catch(console.error)
                 } else if (!profile.requestedFriends.includes(friend.user.username) && friend.user.acceptingFriendRequests) {
                     await db.addFriendRequest(DB, user.username, friend.user.username)
+                    this.notify(friend, "New friend request", `${user.username} wants to be your friend.`).catch(console.error)
                 }
                 this.invalidate(user.username, friend.user.username)
             }
@@ -331,6 +362,7 @@ export class GameRoom extends DurableObject<Env> {
         // Chatting for players in the game
         if (body.action == "chatInGame" && body.message && body.name && key && game.playerKeys[body.name] == key) {
             game.sendMessage(body.message, user, body.name);
+            this.notifyMentions(profile, body.message).catch(console.error)
             return json({ res: "OK" });
         }
 

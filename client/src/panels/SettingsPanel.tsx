@@ -16,6 +16,14 @@ export function SettingsPanel({ me, version, musicOn, onMusicToggle }: { me: Sen
     return (
         <>
             <h1>{me.username}</h1>
+            <div id="stats">
+                <div><b>{me.stats.gamesPlayed}</b><span>Games</span></div>
+                <div><b>{me.stats.wins}</b><span>Wins</span></div>
+                <div><b>{me.stats.gamesPlayed ? Math.round(100 * me.stats.wins / me.stats.gamesPlayed) : 0}%</b><span>Win rate</span></div>
+                <div><b>{me.stats.bestGame}</b><span>Best game</span></div>
+                <div><b>{me.stats.busts}</b><span>Busts</span></div>
+                <div><b>{me.stats.score}</b><span>Rank pts</span></div>
+            </div>
             <label htmlFor="allPushToggle">Do not disturb:</label>
             <input id="allPushToggle" type="checkbox" checked={me.silent}
                 onChange={(e) => post({ action: "silentToggle", mode: e.target.checked })} /><br />

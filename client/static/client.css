@@ -528,3 +528,125 @@ html {
     left: 24px;
     top: 8px;
 }
+.chatText .mention {
+    background-color: rgba(217, 217, 61, 0.35);
+    border-left: 3px solid #d9d93d;
+    padding-left: 4px;
+    font-weight: 600;
+}
+
+#stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin: -10px 10px 15px;
+}
+
+#stats div {
+    background-color: rgba(255, 255, 255, 0.35);
+    border-radius: 5px;
+    padding: 4px 0;
+}
+
+#stats b {
+    display: block;
+    font-size: 22px;
+}
+
+#stats span {
+    font-size: 13px;
+}
+
+#outStatus {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%);
+    bottom: 80px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 26px;
+    font-weight: 700;
+    color: white;
+    white-space: nowrap;
+}
+
+#outStatus.bust {
+    background-color: #c62f2f;
+}
+
+#outStatus.bank {
+    background-color: #4266c9;
+}
+
+#gameOver {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(14, 17, 49, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    animation: fadeIn 0.3s;
+}
+
+#gameOver .card {
+    background-color: #418cd8;
+    border: 5px solid black;
+    border-radius: 10px;
+    padding: 20px 30px;
+    min-width: 360px;
+    max-width: calc(100vw - 80px);
+    text-align: center;
+}
+
+#gameOver h1 {
+    margin: 0 0 5px;
+    font-size: 40px;
+}
+
+#gameOver .bi-trophy-fill {
+    color: #d9d93d;
+}
+
+#gameOver .summary {
+    margin: 0 0 15px;
+    font-size: 18px;
+}
+
+#gameOver table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 20px;
+    margin-bottom: 15px;
+}
+
+#gameOver th {
+    font-size: 15px;
+    border-bottom: 2px solid #0e1131;
+}
+
+#gameOver td {
+    padding: 4px 8px;
+}
+
+#gameOver tr.me {
+    background-color: rgba(217, 217, 61, 0.5);
+    font-weight: 700;
+}
+
+#gameOver .gain {
+    color: #0d6b21;
+    font-weight: 700;
+}
+
+#gameOver .loss {
+    color: #a11c1c;
+    font-weight: 700;
+}
+
+#gameOver button {
+    font-size: 20px;
+    padding: 5px 25px;
+    border-radius: 10px;
+    border: none;
+}

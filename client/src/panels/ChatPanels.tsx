@@ -20,10 +20,13 @@ function MessageBox({ onSend }: { onSend: (message: string) => void }) {
     );
 }
 
-export function ChatPanel({ lines, onSend }: { lines: string[]; onSend: (message: string) => void }) {
+export function ChatPanel({ lines, highlight, onSend }: { lines: string[]; highlight: (line: string) => boolean; onSend: (message: string) => void }) {
     return (
         <>
-            <span className="chatText">{lines.join("\n")}</span>
+            {/* Lines are wrapped in one div so the column-reverse layout keeps them in order */}
+            <span className="chatText">
+                <div>{lines.map((line, i) => <div key={i} className={highlight(line) ? "mention" : ""}>{line}</div>)}</div>
+            </span>
             <MessageBox onSend={onSend} />
         </>
     );

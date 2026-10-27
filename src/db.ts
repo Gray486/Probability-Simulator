@@ -9,6 +9,9 @@ export interface UserRow {
     lastInvite: number | null;
     silent: boolean;
     acceptingFriendRequests: boolean;
+    gamesPlayed: number;
+    bestGame: number;
+    busts: number;
 }
 
 export interface SubscriptionInformation {
@@ -51,8 +54,8 @@ export async function getUserById(db: D1Database, id: string): Promise<UserRow |
     return toUser(await db.prepare("SELECT * FROM users WHERE id = ?").bind(id).first());
 }
 
-export async function getUserByUsername(db: D1Database, username: string): Promise<UserRow | null> {
-    return toUser(await db.prepare("SELECT * FROM users WHERE username = ?").bind(username).first());
+export async function getUserByUsername(db: D1Database, username: string, ignoreCase: boolean = false): Promise<UserRow | null> {
+    return toUser(await db.prepare(`SELECT * FROM users WHERE username = ?${ignoreCase ? " COLLATE NOCASE" : ""}`).bind(username).first());
 }
 
 /**
@@ -75,11 +78,23 @@ export async function updateUser(db: D1Database, username: string, fields: Parti
     ).bind(...values, username).run();
 }
 
-/** Adds `delta` to a user's score and `winDelta` to their wins. */
-export async function addToScore(db: D1Database, username: string, delta: number, winDelta: number = 0): Promise<void> {
+/** Adds `delta` to a user's score. */
+export async function addToScore(db: D1Database, username: string, delta: number): Promise<void> {
+    await db.prepare("UPDATE users SET score = score + ?, updatedAt = CURRENT_TIMESTAMP WHERE username = ?").bind(delta, username).run();
+}
+
+/**
+ * Records a finished game for a user.
+ * @param points Points added to their account score.
+ * @param won Whether they won the game.
+ * @param score Their score at the end of the game.
+ * @param busts Number of times they busted.
+ */
+export async function recordGame(db: D1Database, username: string, points: number, won: boolean, score: number, busts: number): Promise<void> {
     await db.prepare(
-        "UPDATE users SET score = score + ?, wins = wins + ?, updatedAt = CURRENT_TIMESTAMP WHERE username = ?"
-    ).bind(delta, winDelta, username).run();
+        `UPDATE users SET score = score + ?, wins = wins + ?, gamesPlayed = gamesPlayed + 1,
+            bestGame = MAX(bestGame, ?), busts = busts + ?, updatedAt = CURRENT_TIMESTAMP WHERE username = ?`
+    ).bind(points, won ? 1 : 0, score, busts, username).run();
 }
 
 /** Loads a user and everything about them that is sent to the client. */

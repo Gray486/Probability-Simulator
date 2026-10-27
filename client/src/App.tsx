@@ -6,9 +6,27 @@ import { ChatPanel, DmPanel } from "./panels/ChatPanels";
 import { RankingsPanel } from "./panels/RankingsPanel";
 import { FriendsPanel, RequestsPanel, unreadFrom } from "./panels/FriendsPanels";
 import { SettingsPanel } from "./panels/SettingsPanel";
+import { GameOver } from "./GameOver";
 import { music } from "./music";
 
 type PanelId = "chat" | "rankings" | "friends" | "settings" | "requests" | "dm";
+
+/** Why the player is out of the current round. `points` is set when they banked themselves. */
+type OutReason = { kind: "bust" } | { kind: "bank"; points?: number };
+
+/** Whether a chat line @mentions the user. */
+function mentions(line: string, username: string): boolean {
+    const message = line.slice(line.indexOf(": ") + 2);
+    const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`@${escaped}(?![^\\s@:,.!?])`, "i").test(message);
+}
+
+/** Chat lines in `now` that weren't in `before`. */
+function newChatLines(before: string[], now: string[]): string[] {
+    if (before.length == 0) return now;
+    const index = now.lastIndexOf(before[before.length - 1]);
+    return index == -1 ? now : now.slice(index + 1);
+}
 
 const moveIcons: Record<Player["lastMove"], ReactElement | null> = {
     "": null,
@@ -83,6 +101,10 @@ function Game({ data }: { data: SendData }) {
     const [panel, setPanel] = useState<PanelId>("chat");
     const [dmFriend, setDmFriend] = useState("");
     const [musicOn, setMusicOn] = useState(true);
+    const [out, setOut] = useState<OutReason | null>(null);
+    const [showResults, setShowResults] = useState(false);
+    /** Someone @mentioned us while the chat panel was closed. */
+    const [chatAlert, setChatAlert] = useState(false);
 
     const timer = useCountdown();
     const { banner, show: showBanner } = useBanner();
@@ -100,6 +122,10 @@ function Game({ data }: { data: SendData }) {
     /** The spin callback outlives renders, so it reads the name through a ref. */
     const myNameRef = useRef(myName);
     myNameRef.current = myName;
+
+    /** Read by the data effect, which only re-runs when data changes. */
+    const panelRef = useRef(panel);
+    panelRef.current = panel;
 
     const joined = myName != "";
     const mine: Player | undefined = data.players.find((p) => p.gameName == myName);
@@ -137,22 +163,28 @@ function Game({ data }: { data: SendData }) {
         }
         if (game.started && !last.game.started) timer.stop();
 
-        if (game.round != last.game.round) {
+        // Someone @mentioned us
+        if (panelRef.current != "chat" && newChatLines(last.chat, data.chat).some((line) => mentions(line, data.me.username))) {
+            setChatAlert(true);
+        }
+
+        const gameEnded = game.gameNumber != last.game.gameNumber;
+        if (gameEnded || game.round != last.game.round) {
+            // Stops anything from the previous round / game, including spins that are still animating
             roundId.current++;
             setUsedFreeSpin(false);
             setCanMove(false);
+            setOut(null);
             timer.stop();
             wheel.current?.reset();
             setPot(game.points);
+        }
 
-            if (game.round == 0) {
-                nextSpin.current = 1;
-                if (joined) {
-                    setTimeout(() => showBanner(game.lastWinner ? `${game.lastWinner} has won the game!` : "Game Over!", 2250), 750);
-                }
-            } else if (game.started && joined) {
-                showBanner("New Round Starting!", 3000);
-            }
+        if (gameEnded) {
+            nextSpin.current = 1;
+            if (game.lastResults.length > 0) setShowResults(true);
+        } else if (game.round != last.game.round && game.started && joined) {
+            showBanner("New Round Starting!", 3000);
         }
 
         if (game.started && game.spinNumber == nextSpin.current) {
@@ -177,8 +209,10 @@ function Game({ data }: { data: SendData }) {
 
         if (me?.alive) {
             setCanMove(true);
-        } else if (me && (me.lastMove == "higher" || me.lastMove == "lower")) {
-            showBanner("You busted!!", 1500);
+        } else if (me) {
+            // Banked ourselves earlier, banked for running out of time, or busted
+            setOut((current) => current ?? (me.lastMove == "bank" ? { kind: "bank" } : { kind: "bust" }));
+            if (me.lastMove == "higher" || me.lastMove == "lower") showBanner("You busted!!", 1500);
         }
 
         timer.start(MOVE_TIME);
@@ -216,7 +250,14 @@ function Game({ data }: { data: SendData }) {
             setCanMove(true);
         } else if (move == "freeSpin") {
             setUsedFreeSpin(true);
+        } else if (move == "bank") {
+            setOut({ kind: "bank", points: pot });
         }
+    }
+
+    function openPanel(id: PanelId) {
+        setPanel(id);
+        if (id == "chat") setChatAlert(false);
     }
 
     function sendChat(message: string) {
@@ -229,7 +270,7 @@ function Game({ data }: { data: SendData }) {
         music.volume = on ? 0.1 : 0;
     }
 
-    const hasUnreadDms = data.me.friends.some((f) => unreadFrom(data.me, f) > 0);
+    const friendsAlert = data.me.friendRequests.length > 0 || data.me.friends.some((f) => unreadFrom(data.me, f) > 0);
     const showJoin = !joined && !spectator;
     const ready = data.players.filter((p) => p.ready).length;
     const dmLines = data.me.directMessageChannels
@@ -237,9 +278,9 @@ function Game({ data }: { data: SendData }) {
         ?.messages.map((m) => `${m.from}: ${m.content}`) ?? [];
 
     const panels: Record<PanelId, ReactElement> = {
-        chat: <ChatPanel lines={data.chat} onSend={sendChat} />,
+        chat: <ChatPanel lines={data.chat} highlight={(line) => mentions(line, data.me.username)} onSend={sendChat} />,
         rankings: <RankingsPanel rankings={data.rankings} />,
-        friends: <FriendsPanel me={data.me} onOpenDm={(f) => { setDmFriend(f); setPanel("dm") }} onViewRequests={() => setPanel("requests")} />,
+        friends: <FriendsPanel me={data.me} onOpenDm={(f) => { setDmFriend(f); openPanel("dm") }} onViewRequests={() => openPanel("requests")} />,
         requests: <RequestsPanel me={data.me} />,
         dm: <DmPanel lines={dmLines} onSend={(message) => post({ action: "messageFriend", username: dmFriend, message })} />,
         settings: <SettingsPanel me={data.me} version={data.version} musicOn={musicOn} onMusicToggle={toggleMusic} />
@@ -266,12 +307,14 @@ function Game({ data }: { data: SendData }) {
                     </div>
                 )}
                 <div id="panel">
-                    <div id="rankingsSwitch" className="switch" onClick={() => setPanel("rankings")}><i className="bi bi-list-ol"></i></div>
-                    <div id="chatSwitch" className="switch" onClick={() => setPanel("chat")}><i className="bi bi-chat-left-dots-fill"></i></div>
-                    <div id="friendsSwitch" className="switch" onClick={() => setPanel("friends")}>
-                        <i className="bi bi-person-fill" style={{ color: hasUnreadDms ? "red" : "black" }}></i>
+                    <div id="rankingsSwitch" className="switch" onClick={() => openPanel("rankings")}><i className="bi bi-list-ol"></i></div>
+                    <div id="chatSwitch" className="switch" onClick={() => openPanel("chat")}>
+                        <i className="bi bi-chat-left-dots-fill" style={{ color: chatAlert ? "red" : "black" }}></i>
                     </div>
-                    <div id="settingsSwitch" className="switch" onClick={() => setPanel("settings")}><i className="bi bi-gear-fill"></i></div>
+                    <div id="friendsSwitch" className="switch" onClick={() => openPanel("friends")}>
+                        <i className="bi bi-person-fill" style={{ color: friendsAlert ? "red" : "black" }}></i>
+                    </div>
+                    <div id="settingsSwitch" className="switch" onClick={() => openPanel("settings")}><i className="bi bi-gear-fill"></i></div>
                     <div id={`${panel}Div`} className="panelDiv" key={panel}>{panels[panel]}</div>
                 </div>
             </div>
@@ -290,7 +333,14 @@ function Game({ data }: { data: SendData }) {
                 })}
             </div>
             <div id="game">
-                {joined && (
+                {joined && data.game.started && out && (
+                    <div id="outStatus" className={out.kind}>
+                        {out.kind == "bust"
+                            ? <><i className="bi bi-x-octagon-fill"></i> You busted! Wait for the next round.</>
+                            : <><i className="bi bi-bank2"></i> {out.points != null ? `You banked ${out.points} points.` : "Out of time, you were banked."} Wait for the next round.</>}
+                    </div>
+                )}
+                {joined && !(data.game.started && out) && (
                     <div id="controls">
                         <button disabled={!canMove} onClick={() => play("bank")} style={{ backgroundColor: "#4266c9" }}>Bank <i className="bi bi-bank"></i></button>
                         <button disabled={!canMove} onClick={() => play("higher")} style={{ backgroundColor: "#d9d93d" }}>Higher <i className="bi bi-arrow-up-square-fill"></i></button>
@@ -306,6 +356,7 @@ function Game({ data }: { data: SendData }) {
                 <div id="wheel" ref={wheelDiv} style={{ visibility: showJoin ? "hidden" : "visible" }}></div>
                 <div id="newRound" className={banner.visible ? "visible" : ""}>{banner.text}</div>
             </div>
+            {showResults && <GameOver game={data.game} username={data.me.username} onClose={() => setShowResults(false)} />}
             {location.host !== "prob.grayjn.com" && (
                 <span id="dev">This is a dev server. Features are not finalized. Data may NOT save.</span>
             )}

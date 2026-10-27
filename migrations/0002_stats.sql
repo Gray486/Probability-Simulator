@@ -1,0 +1,4 @@
+-- Lifetime statistics shown in settings.
+ALTER TABLE users ADD COLUMN gamesPlayed INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN bestGame INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN busts INTEGER NOT NULL DEFAULT 0;
