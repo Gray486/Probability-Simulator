@@ -7,7 +7,7 @@ import { RankingsPanel } from "./panels/RankingsPanel";
 import { FriendsPanel, RequestsPanel, unreadFrom } from "./panels/FriendsPanels";
 import { SettingsPanel } from "./panels/SettingsPanel";
 import { GameOver } from "./GameOver";
-import { music } from "./music";
+import { music, MUSIC_VOLUME } from "./music";
 
 type PanelId = "chat" | "rankings" | "friends" | "settings" | "requests" | "dm";
 
@@ -244,7 +244,13 @@ function Game({ data }: { data: SendData }) {
 
     async function play(move: Move) {
         setCanMove(false);
+        const round = roundId.current;
         const res = await post({ action: "play", move, name: myName });
+
+        // Banking as the last player in starts the next round straight away, and that update can
+        // arrive before this response. Don't apply this round's result to the new round.
+        if (round != roundId.current) return;
+
         if (res !== "OK") {
             alert(res);
             setCanMove(true);
@@ -260,6 +266,24 @@ function Game({ data }: { data: SendData }) {
         if (id == "chat") setChatAlert(false);
     }
 
+    // Up / down arrow keys pick higher / lower, enter banks. The listener is added once, so it
+    // calls through a ref to see the current state.
+    const onKeyDown = useRef<(e: KeyboardEvent) => void>(null);
+    onKeyDown.current = (e) => {
+        const keyMoves: Record<string, Move> = { ArrowUp: "higher", ArrowDown: "lower", Enter: "bank" };
+        const move: Move | undefined = keyMoves[e.key];
+        const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+        if (!move || typing || e.repeat || !canMove || showResults) return;
+        // Also stops enter from clicking whichever button has focus
+        e.preventDefault();
+        play(move);
+    };
+    useEffect(() => {
+        const listener = (e: KeyboardEvent) => onKeyDown.current?.(e);
+        window.addEventListener("keydown", listener);
+        return () => window.removeEventListener("keydown", listener);
+    }, []);
+
     function sendChat(message: string) {
         if (joined) post({ action: "chatInGame", name: myName, message });
         else post({ action: "chat", message });
@@ -267,7 +291,7 @@ function Game({ data }: { data: SendData }) {
 
     function toggleMusic(on: boolean) {
         setMusicOn(on);
-        music.volume = on ? 0.1 : 0;
+        music.volume = on ? MUSIC_VOLUME : 0;
     }
 
     const friendsAlert = data.me.friendRequests.length > 0 || data.me.friends.some((f) => unreadFrom(data.me, f) > 0);
@@ -342,9 +366,9 @@ function Game({ data }: { data: SendData }) {
                 )}
                 {joined && !(data.game.started && out) && (
                     <div id="controls">
-                        <button disabled={!canMove} onClick={() => play("bank")} style={{ backgroundColor: "#4266c9" }}>Bank <i className="bi bi-bank"></i></button>
-                        <button disabled={!canMove} onClick={() => play("higher")} style={{ backgroundColor: "#d9d93d" }}>Higher <i className="bi bi-arrow-up-square-fill"></i></button>
-                        <button disabled={!canMove} onClick={() => play("lower")} style={{ backgroundColor: "#863dd9" }}>Lower <i className="bi bi-arrow-down-square-fill"></i></button>
+                        <button disabled={!canMove} onClick={() => play("bank")} title="Enter" style={{ backgroundColor: "#4266c9" }}>Bank <i className="bi bi-bank"></i></button>
+                        <button disabled={!canMove} onClick={() => play("higher")} title="Up arrow" style={{ backgroundColor: "#d9d93d" }}>Higher <i className="bi bi-arrow-up-square-fill"></i></button>
+                        <button disabled={!canMove} onClick={() => play("lower")} title="Down arrow" style={{ backgroundColor: "#863dd9" }}>Lower <i className="bi bi-arrow-down-square-fill"></i></button>
                         {mine?.freeSpin && !usedFreeSpin && (
                             <button disabled={!canMove} onClick={() => play("freeSpin")} style={{ backgroundColor: "#1bc640" }}>Free Spin <i className="bi bi-ticket-detailed"></i></button>
                         )}
